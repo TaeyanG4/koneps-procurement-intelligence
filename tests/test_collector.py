@@ -333,3 +333,48 @@ def test_collector_category_mismatch_invalidates(tmp_path):
     meta, items = RawStorage.read_window(out_path)
     assert meta["business_code"] == "1"
     assert items[0]["awardNo"] == "CORRECT_GOODS"
+
+
+def test_collector_dry_run_stats(tmp_path):
+    mock_client = MagicMock()
+    mock_client.calls = 0
+    out_dir = tmp_path / "raw"
+    collector = Collector(client=mock_client, out_dir=out_dir)
+
+    start = date(2026, 9, 1)
+    end = date(2026, 9, 1)
+
+    stats = collector.collect(dataset="bids", start=start, end=end, dry_run=True)
+    assert stats.dry_run_windows == 1
+    assert stats.completed_windows == 0
+    assert stats.skipped_windows == 0
+    assert stats.total_rows == 0
+    assert stats.total_calls == 0
+    assert mock_client.get_page.call_count == 0
+    assert not (out_dir / "bids").exists()
+
+
+def test_cli_dry_run_reporting(monkeypatch, tmp_path, caplog):
+    import logging
+    from scripts import collect_standard
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "collect_standard.py",
+            "--dataset", "bids",
+            "--start", "2026-09-01",
+            "--end", "2026-09-01",
+            "--out", str(tmp_path / "raw"),
+            "--dry-run",
+        ],
+    )
+
+    with caplog.at_level(logging.INFO):
+        collect_standard.main()
+
+    messages = [rec.message for rec in caplog.records]
+    assert any("DRY-RUN COMPLETE: planned_windows=1, api_calls=0, files_written=0" in m for m in messages)
+    assert not any("windows_saved=" in m for m in messages)
+    assert not any("COMPLETED: total_rows=" in m for m in messages)
+

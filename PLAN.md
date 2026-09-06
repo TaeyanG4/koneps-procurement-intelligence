@@ -1,4 +1,5 @@
-# KONEPS Kaggle Gold Candidate — Collection Plan
+# KONEPS Kaggle Dataset — Collection Plan
+
 
 ## Dataset working title
 
@@ -33,7 +34,8 @@ Candidate grain:
 
 Never join before checking 1:1 vs 1:N cardinality. A tender can have many bidders and sometimes several classifications/contracts.
 
-## Phase 3 — Gold-facing tables
+## Phase 3 — Curated target tables
+
 
 Target publication structure:
 

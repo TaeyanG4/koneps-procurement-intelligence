@@ -54,7 +54,8 @@ TRANSIENT_STATUS_CODES = {429, 500, 502, 503, 504}
 
 
 class KonepsClient:
-    """Production-grade HTTP client for data.go.kr KONEPS APIs."""
+    """Fault-tolerant, resilient HTTP client for data.go.kr KONEPS APIs."""
+
 
     def __init__(
         self,

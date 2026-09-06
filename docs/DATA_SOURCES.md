@@ -59,6 +59,8 @@ In addition to standard API feeds, detailed bidder-level competition records are
 - **Code vs. Data Separation**: The source code in this repository is maintained separately from the collected datasets. Historical data is not committed to Git and will be distributed independently via Kaggle Datasets under applicable terms.
 
 ### Privacy and Responsible Publication Checkpoints
-1. **Business Registration Numbers**: Korean business registration numbers (`사업자등록번호`) identify corporate and commercial entities. Before public release on Kaggle, the data engineering pipeline verifies whether raw numbers should be preserved or pseudonymized into stable hashed identifiers (`supplier_id_hash`).
-2. **Personal Data Protection**: Public procurement tenders occasionally involve sole proprietors or individuals. Any personal identifying numbers (e.g. resident registration numbers) are strictly excluded by source APIs.
-3. **No Credential Exposure**: Never commit API keys, service tokens, or `.env` files into source control.
+1. **Source-by-Source License Re-Verification**: Prior to public Kaggle release, verify the exact terms of use and attribution requirements for each specific `data.go.kr` service endpoint (`getDataSetOpnStdBidPblancInfo`, `getDataSetOpnStdScsbidInfo`, `getDataSetOpnStdCntrctInfo`) and KONEPS portal export. Do not assume blanket terms across distinct endpoints.
+2. **Business Registration Numbers**: Korean business registration numbers (`사업자등록번호`) identify corporate and commercial entities. Before public release on Kaggle, the data engineering pipeline verifies whether raw numbers should be preserved or pseudonymized into stable hashed identifiers (`supplier_id_hash`).
+3. **Personal Data Protection**: Public procurement tenders occasionally involve sole proprietors or individuals. Any personal identifying numbers (e.g. resident registration numbers) are strictly excluded by source APIs.
+4. **No Credential Exposure**: Never commit API keys, service tokens, or `.env` files into source control.
+

@@ -83,7 +83,8 @@ The pipeline enforces strict separation of concerns across data layers and ensur
 2. **Official Bidder Outcome Report Export (`bidder_outcomes`)**:
    - Official portal export providing comprehensive company-level submissions (all bidders, business numbers, submitted amounts, bid rates, and disqualification reasons).
 
-For licensing details and terms of use under Korea Open Government License (KOGL / 공공누리 Type 1), see [DATA_SOURCES.md](docs/DATA_SOURCES.md).
+> **Licensing & Terms of Use**: Specific terms of use for each raw dataset follow the scope of permission indicated on the respective service page on data.go.kr and KONEPS. Terms of use per data source will be re-verified prior to Kaggle redistribution. For detailed per-source notes, see [DATA_SOURCES.md](docs/DATA_SOURCES.md).
+
 
 ---
 
@@ -348,6 +349,8 @@ For exhaustive data types, Korean source field names, and nullability constraint
 - **No Secrets in Git**: Service keys are never committed and must be provided via local `.env`.
 - **Code Only in GitHub**: Collected procurement datasets are excluded from Git (`.gitignore`) and distributed via Kaggle Datasets.
 - **Privacy & Identifier Protection**: Before public Kaggle publication, company representative names and business registration numbers can be pseudonymized with SHA-256 hashing if required.
+- **Data Provenance & License Verification**: Specific terms of use follow the permissions indicated on data.go.kr and KONEPS per service endpoint. All source licenses will be explicitly re-verified prior to public Kaggle release.
+
 
 ---
 

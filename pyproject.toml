@@ -5,9 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "koneps-procurement-intelligence"
 version = "0.1.1"
-description = "Production-grade ETL pipeline for South Korea KONEPS public procurement data, built for analytics, machine learning, and Kaggle."
+description = "Reproducible ETL pipeline for South Korea KONEPS public procurement data, built for analytics, machine learning, and Kaggle."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
+
 dependencies = [
     "requests>=2.32.0",
     "python-dotenv>=1.0.1",

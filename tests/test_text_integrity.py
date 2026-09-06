@@ -82,3 +82,34 @@ def test_authentic_unicode_and_korean_strings():
     assert "공공누리" in data_sources, "DATA_SOURCES.md missing KOGL Korean term"
     assert "조달청" in data_sources, "DATA_SOURCES.md missing agency name"
 
+
+def test_cautious_licensing_language():
+    """Ensure README files and docs use cautious per-source license language."""
+    readme_ko = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    expected_ko = "각 원천 데이터의 이용조건은 공공데이터포털 및 나라장터의 해당 서비스 페이지에 표시된 이용허락범위를 따릅니다. Kaggle 재배포 전 데이터 소스별 이용조건을 다시 확인합니다."
+    assert expected_ko in readme_ko, "README.md missing cautious Korean license wording"
+
+    readme_en = (REPO_ROOT / "README.en.md").read_text(encoding="utf-8")
+    expected_en = "Specific terms of use for each raw dataset follow the scope of permission indicated on the respective service page on data.go.kr and KONEPS. Terms of use per data source will be re-verified prior to Kaggle redistribution."
+    assert expected_en in readme_en, "README.en.md missing cautious English license wording"
+
+    data_sources = (REPO_ROOT / "docs" / "DATA_SOURCES.md").read_text(encoding="utf-8")
+    assert "Source-by-Source License Re-Verification" in data_sources, "DATA_SOURCES.md missing publication checkpoint"
+
+
+def test_python_version_and_metadata_consistency():
+    """Ensure pyproject.toml, CI workflow, and READMEs agree on supported Python version >=3.11."""
+    pyproject = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'requires-python = ">=3.11"' in pyproject, "pyproject.toml must require >=3.11"
+    assert "Production-grade" not in pyproject, "pyproject.toml must not use premature 'Production-grade' overclaim"
+
+    ci_yml = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    assert '"3.11"' in ci_yml and '"3.12"' in ci_yml, "ci.yml must test 3.11 and 3.12"
+
+    readme_ko = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    assert "3.11" in readme_ko and "3.12" in readme_ko
+
+    readme_en = (REPO_ROOT / "README.en.md").read_text(encoding="utf-8")
+    assert "3.11" in readme_en and "3.12" in readme_en
+
+

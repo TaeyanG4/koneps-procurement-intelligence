@@ -22,8 +22,13 @@ This document tracks the implementation progress and development milestones for 
 - [x] Data quality and anomaly validation engine (`quality_check.py`)
 - [x] Unit and integration test suite passing 100% without requiring live API keys
 - [x] Dual-language documentation policy: Korean-first (`README.md`) and English (`README.en.md`)
+- [x] Hardened repository privacy policy (local AI assistant, agent instructions, and scratch exclusions in `.gitignore`)
+- [x] Truthful dry-run statistics semantics (`dry_run_windows`) without phantom saved windows
+- [x] Cautious per-source licensing policy documentation with pre-Kaggle verification checkpoint
+- [x] Consistent Python support policy (`requires-python = ">=3.11"`) across configuration, docs, and CI
 - [x] GitHub Actions CI workflow for Python 3.11 and 3.12 (`.[dev]`)
 - [x] Complete technical documentation (`DATA_SOURCES.md`, `DATA_DICTIONARY.md`, `ARCHITECTURE.md`)
+
 
 ---
 

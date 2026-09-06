@@ -21,6 +21,8 @@ class CollectionStats:
     total_calls: int = 0
     skipped_windows: int = 0
     completed_windows: int = 0
+    dry_run_windows: int = 0
+
 
 
 class Collector:
@@ -240,7 +242,9 @@ class Collector:
                         )
                         stats.total_rows += rows
                         stats.total_calls += calls
-                        if rows == 0 and calls == 0 and not dry_run:
+                        if dry_run:
+                            stats.dry_run_windows += 1
+                        elif rows == 0 and calls == 0:
                             stats.skipped_windows += 1
                         else:
                             stats.completed_windows += 1
@@ -253,11 +257,18 @@ class Collector:
                         )
                         raise
 
-        self.logger.info(
-            "DONE collection: total_rows=%d, total_api_calls=%d, completed_windows=%d, skipped_windows=%d",
-            stats.total_rows,
-            stats.total_calls,
-            stats.completed_windows,
-            stats.skipped_windows,
-        )
+        if dry_run:
+            self.logger.info(
+                "DRY-RUN collection: planned_windows=%d, api_calls=0, files_written=0",
+                stats.dry_run_windows,
+            )
+        else:
+            self.logger.info(
+                "DONE collection: total_rows=%d, total_api_calls=%d, completed_windows=%d, skipped_windows=%d",
+                stats.total_rows,
+                stats.total_calls,
+                stats.completed_windows,
+                stats.skipped_windows,
+            )
         return stats
+

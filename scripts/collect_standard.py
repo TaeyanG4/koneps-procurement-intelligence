@@ -74,13 +74,21 @@ def main() -> None:
             force=args.force,
             dry_run=args.dry_run,
         )
-        logger.info(
-            "COMPLETED: total_rows=%d, api_calls=%d, windows_saved=%d, windows_skipped=%d",
-            stats.total_rows,
-            stats.total_calls,
-            stats.completed_windows,
-            stats.skipped_windows,
-        )
+        if args.dry_run:
+            logger.info(
+                "DRY-RUN COMPLETE: planned_windows=%d, api_calls=%d, files_written=0",
+                stats.dry_run_windows,
+                stats.total_calls,
+            )
+        else:
+            logger.info(
+                "COMPLETED: total_rows=%d, api_calls=%d, windows_saved=%d, windows_skipped=%d",
+                stats.total_rows,
+                stats.total_calls,
+                stats.completed_windows,
+                stats.skipped_windows,
+            )
+
     except AuthenticationError as e:
         logger.error("Authentication Failure: %s", e)
         sys.exit(2)
