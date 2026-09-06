@@ -1,0 +1,150 @@
+"""Canonical schemas, column mappings, and controlled vocabularies."""
+from __future__ import annotations
+
+from typing import Dict, List
+
+# Deduplication key candidates by feed
+DEDUPLICATION_KEYS: Dict[str, List[str]] = {
+    "bids": ["bidNtceNo", "bidNtceOrd", "bidClsfcNo", "rbidNo"],
+    "awards": ["bidNtceNo", "bidNtceOrd", "bidClsfcNo", "rbidNo"],
+    "contracts": ["untyCntrctNo", "cntrctNo", "cntrctRefNo"],
+    "bidder_outcomes": ["bid_notice_no", "bid_notice_round", "bidder_business_registration_no"],
+}
+
+# English canonical mappings for standard API feeds
+BIDS_API_ALIASES: Dict[str, str] = {
+    "bidNtceNo": "bid_notice_no",
+    "bidNtceOrd": "bid_notice_round",
+    "bidClsfcNo": "bid_classification_no",
+    "rbidNo": "rebid_no",
+    "bidNtceNm": "bid_title_ko",
+    "ntceInsttCd": "notice_agency_code",
+    "ntceInsttNm": "notice_agency_name_ko",
+    "dminsttCd": "demand_agency_code",
+    "dminsttNm": "demand_agency_name_ko",
+    "bidNtceDt": "bid_notice_date",
+    "bidNtceBgnDt": "bid_notice_begin_datetime",
+    "bidNtceEndDt": "bid_notice_end_datetime",
+    "opengDt": "opening_datetime",
+    "asignBdgtAmt": "assigned_budget_krw",
+    "presmPtce": "estimated_price_krw",
+    "bsisAmt": "base_amount_krw",
+    "bsnsDivCd": "business_div_code",
+    "bsnsDivNm": "business_div_name_ko",
+    "cntrctCnclsMthdNm": "contract_method_ko",
+    "sucsfbidMthdNm": "award_method_ko",
+    "sucsfbidLwltRate": "award_lower_limit_rate",
+}
+
+AWARDS_API_ALIASES: Dict[str, str] = {
+    "bidNtceNo": "bid_notice_no",
+    "bidNtceOrd": "bid_notice_round",
+    "bidClsfcNo": "bid_classification_no",
+    "rbidNo": "rebid_no",
+    "bidNtceNm": "bid_title_ko",
+    "opengDt": "opening_datetime",
+    "bsnsDivCd": "business_div_code",
+    "bsnsDivNm": "business_div_name_ko",
+    "sucsfbidAmt": "award_amount_krw",
+    "sucsfbidRate": "award_rate",
+    "corpNm": "winner_name_ko",
+    "bizno": "winner_business_registration_no",
+    "presmPtce": "estimated_price_krw",
+    "bsisAmt": "base_amount_krw",
+    "plndPrice": "scheduled_price_krw",
+    "dminsttNm": "demand_agency_name_ko",
+}
+
+CONTRACTS_API_ALIASES: Dict[str, str] = {
+    "untyCntrctNo": "unified_contract_no",
+    "cntrctNo": "contract_no",
+    "cntrctRefNo": "contract_ref_no",
+    "cntrctNm": "contract_title_ko",
+    "cntrctCnclsDate": "contract_date",
+    "cntrctAmt": "contract_amount_krw",
+    "totCntrctAmt": "total_contract_amount_krw",
+    "corpNm": "contractor_name_ko",
+    "bizno": "contractor_business_registration_no",
+    "dminsttCd": "demand_agency_code",
+    "dminsttNm": "demand_agency_name_ko",
+    "cntrctMthdNm": "contract_method_ko",
+}
+
+# Bidder Report Export Aliases
+BIDDER_REPORT_ALIASES: Dict[str, str] = {
+    "조달방식": "procurement_channel",
+    "업무구분": "business_type",
+    "입찰방법": "bidding_method",
+    "계약구분": "contract_type",
+    "입찰공고번호": "bid_notice_no",
+    "입찰공고차수": "bid_notice_round",
+    "입찰분류번호": "bid_classification_no",
+    "공고명": "bid_title_ko",
+    "공고일자": "bid_notice_date",
+    "공고기관코드": "notice_agency_code",
+    "공고기관": "notice_agency_name_ko",
+    "수요기관코드": "demand_agency_code",
+    "수요기관": "demand_agency_name_ko",
+    "계약방법": "contract_method",
+    "낙찰방법": "award_method",
+    "적용계약법": "applicable_contract_law",
+    "조항호내용": "legal_clause_text_ko",
+    "개찰일자": "opening_date",
+    "공공조달분류": "public_procurement_classification",
+    "공동도급구성방식": "joint_contract_structure",
+    "면허업종제한목록": "license_restrictions_ko",
+    "세부품명번호목록": "item_detail_codes",
+    "제한지역목록": "region_restrictions_ko",
+    "공동도급지역목록": "joint_contract_regions_ko",
+    "공사현장": "construction_site_ko",
+    "정보화사업여부": "is_it_project",
+    "긴급공고여부": "is_urgent_notice",
+    "지역의무공동도급여부": "is_mandatory_regional_joint_contract",
+    "소관구분": "jurisdiction_type",
+    "수요기관소재시군구": "demand_agency_sigungu_ko",
+    "배정예산": "allocated_budget_krw",
+    "추정가격": "estimated_price_krw",
+    "유찰여부": "is_failed_bid",
+    "기초금액": "base_amount_krw",
+    "예정가격": "scheduled_price_krw",
+    "개찰순위": "opening_rank",
+    "낙찰자선정여부": "is_selected_winner",
+    "업체명": "bidder_name_ko",
+    "업체사업자등록번호": "bidder_business_registration_no",
+    "투찰일자": "bid_submission_date",
+    "투찰금액": "bid_amount_krw",
+    "투찰율": "bid_rate",
+    "부적격여부": "is_disqualified",
+    "입찰부적격사유": "disqualification_reason_ko",
+    "업체소재시군구": "bidder_sigungu_ko",
+    "계약번호": "contract_no",
+    "계약일자": "contract_date",
+    "계약시점기업구분": "company_class_at_contract",
+    "신규장기구분": "new_or_long_term_contract",
+    "금차계약금액": "current_contract_amount_krw",
+    "총계약금액": "total_contract_amount_krw",
+}
+
+# Controlled categorical value mappings
+CONTROLLED_CATEGORIES: Dict[str, Dict[str, str]] = {
+    "business_div": {
+        "1": "goods",
+        "2": "foreign",
+        "3": "construction",
+        "5": "service",
+        "물품": "goods",
+        "외자": "foreign",
+        "공사": "construction",
+        "용역": "service",
+    },
+    "boolean_yn": {
+        "Y": "true",
+        "N": "false",
+        "y": "true",
+        "n": "false",
+        "여": "true",
+        "부": "false",
+        "1": "true",
+        "0": "false",
+    }
+}

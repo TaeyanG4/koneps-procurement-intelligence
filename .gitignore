@@ -1,0 +1,41 @@
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# Python & Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.pytest_temp/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+
+# Large generated data directories
+data/raw/*
+data/staging/*
+data/processed/*
+data/logs/*
+
+!data/raw/.gitkeep
+!data/staging/.gitkeep
+!data/processed/.gitkeep
+!data/logs/.gitkeep
+
+# Exclude generated datasets under data/
+data/**/*.parquet
+data/**/*.csv
+data/**/*.csv.gz
+data/**/*.jsonl
+data/**/*.jsonl.gz
+data/**/*.xlsx
+data/**/*.xls
+data/**/*.part

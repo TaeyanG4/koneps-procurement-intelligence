@@ -1,0 +1,57 @@
+{
+  "response": {
+    "header": {
+      "resultCode": "00",
+      "resultMsg": "NORMAL SERVICE."
+    },
+    "body": {
+      "items": [
+        {
+          "bidNtceNo": "20260901001",
+          "bidNtceOrd": "00",
+          "bidClsfcNo": "01",
+          "rbidNo": "0",
+          "bidNtceNm": "AI ?? ???? ???? ?? ??? ??",
+          "ntceInsttCd": "1230000",
+          "ntceInsttNm": "???",
+          "dminsttCd": "1230000",
+          "dminsttNm": "???",
+          "bidNtceDt": "2026-09-01 09:00:00",
+          "bidNtceBgnDt": "202609010900",
+          "bidNtceEndDt": "202609151800",
+          "opengDt": "2026-09-16 10:00:00",
+          "asignBdgtAmt": "1,500,000,000",
+          "presmPtce": "1,363,636,364",
+          "bsnsDivCd": "5",
+          "bsnsDivNm": "??",
+          "cntrctCnclsMthdNm": "????",
+          "sucsfbidMthdNm": "????????"
+        },
+        {
+          "bidNtceNo": "20260901002",
+          "bidNtceOrd": "00",
+          "bidClsfcNo": "01",
+          "rbidNo": "0",
+          "bidNtceNm": "???? ??? ?? ? ????? ???? ??",
+          "ntceInsttCd": "1312000",
+          "ntceInsttNm": "???",
+          "dminsttCd": "1312000",
+          "dminsttNm": "???",
+          "bidNtceDt": "2026-09-01 10:00:00",
+          "bidNtceBgnDt": "202609011000",
+          "bidNtceEndDt": "202609101700",
+          "opengDt": "2026-09-11 11:00:00",
+          "asignBdgtAmt": "350,000,000",
+          "presmPtce": "318,181,818",
+          "bsnsDivCd": "1",
+          "bsnsDivNm": "??",
+          "cntrctCnclsMthdNm": "????",
+          "sucsfbidMthdNm": "???????"
+        }
+      ],
+      "totalCount": 2,
+      "numOfRows": 10,
+      "pageNo": 1
+    }
+  }
+}

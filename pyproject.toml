@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "koneps-procurement-intelligence"
+version = "0.1.0"
+description = "Production-grade ETL pipeline for South Korea KONEPS public procurement data, built for analytics, machine learning, and Kaggle."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.32.0",
+    "python-dotenv>=1.0.1",
+    "pandas>=2.2.0",
+    "pyarrow>=17.0.0",
+    "openpyxl>=3.1.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --basetemp=.pytest_temp -p no:asyncio"
+testpaths = ["tests"]
+pythonpath = ["src", "."]
