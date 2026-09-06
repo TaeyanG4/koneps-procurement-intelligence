@@ -364,8 +364,10 @@ For exhaustive data types, Korean source field names, and nullability constraint
 | **Bidder Report Ingestion (`ingest_bidder_report.py`)** | IMPLEMENTED | Verified with CSV (`utf-8-sig`, `cp949`), `.xlsx`, and real binary `.xls` (via `xlrd`). |
 | **Quality Profiling (`quality.py`, `quality_check.py`)** | IMPLEMENTED | Verified with clean and anomalous parquet frames. |
 | **CI Automation (`ci.yml`)** | IMPLEMENTED | Automated testing on Python 3.11 & 3.12 across all pushes and pull requests. |
-| **Live API Authentication & 1-Day Smoke Test** | PENDING LIVE VALIDATION | Ready to execute once user configures service key. |
-| **Historical 1-Year Live Crawl** | NOT STARTED | Planned following live smoke test validation. |
+| **Live API Authentication & 1-Day Smoke Test** | VERIFIED | Completed 1-day live collection and Parquet normalization for 2026-09-01 across bids, awards, and contracts. |
+| **1-Month Benchmark & Pilot Validation** | VERIFIED | Completed August 2026 pilot across all feeds (2,268,948 raw rows, 2,255,721 Parquet rows) with zero data corruption (see [PILOT_2026_08.md](docs/PILOT_2026_08.md)). |
+| **Cross-Feed Join Cardinality Design** | NEXT MILESTONE | Empirical key alignment and bridge design across Tender Notice (1), Bidders (N), Award (1), and Contract (N). |
+| **Historical 1-Year Live Crawl** | PLANNED | Scale historical collection after cardinality and schema stabilization. |
 | **Relational Master Join** | PLANNED | Star schema joining Tender Notice $\rightarrow$ Bidders $\rightarrow$ Award $\rightarrow$ Contract. |
 | **Kaggle Dataset v1 Target** | PLANNED | Curated public dataset release and baseline exploratory analysis notebook. |
 
@@ -373,8 +375,9 @@ For exhaustive data types, Korean source field names, and nullability constraint
 
 ## 17. Roadmap & Next Steps
 
-1. **Perform 1-Day Live Smoke Test**: Validate live endpoints with configured credentials for `bids`, `awards`, and `contracts`.
-2. **Collect 1-Month Benchmark & 1-Year MVP**: Systematically crawl target historical windows into raw storage.
-3. **Ingest Historical Bidder Outcome Reports**: Link tender notices with complete bidder participant records.
-4. **Construct Relational Master Dataset**: Eliminate duplicate joining hazards and generate leak-free tabular feature sets.
-5. **Publish Kaggle Research Dataset v1**: Release curated Parquet datasets, comprehensive data card, and starter EDA notebook.
+1. ~~**Perform 1-Day Live Smoke Test**~~: Completed (verified across all 3 feeds for 2026-09-01).
+2. ~~**Collect 1-Month Benchmark & Audit**~~: Completed (August 2026 crawl with 2.26M rows and detailed audit report in [PILOT_2026_08.md](docs/PILOT_2026_08.md)).
+3. **Cross-Feed Join Cardinality Design**: Formulate robust primary/foreign keys and bridge structures across feeds.
+4. **Historical 1-Year MVP Collection & Bidder Reports**: Scale up historical crawling and link detailed bidder participation data.
+5. **Construct Relational Master Dataset**: Eliminate duplicate joining hazards and generate leak-free tabular feature sets.
+6. **Publish Kaggle Research Dataset v1**: Release curated Parquet datasets, comprehensive data card, and starter EDA notebook.

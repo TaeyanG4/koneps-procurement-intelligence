@@ -35,7 +35,7 @@ This document tracks the implementation progress and development milestones for 
 ### Data Collection & Empirical Validation (Operational Milestones)
 - [x] Live API authentication verified with valid `DATA_GO_KR_SERVICE_KEY`
 - [x] 1-day live collection smoke test verified (`bids`, `awards`, `contracts`)
-- [ ] 1-month benchmark dataset collected
+- [x] 1-month benchmark dataset collected (2026-08: 2,268,948 raw rows, 2,255,721 Parquet rows across bids, contracts, awards - see `docs/PILOT_2026_08.md`)
 - [ ] 1-year historical MVP collected
 - [ ] Official bidder outcome report export ingested into `data/processed/bidder_outcomes/`
 - [ ] Empirical key and cardinality validation executed (Tender 1:N Bidder, 1:1 Award, 1:N Contract)

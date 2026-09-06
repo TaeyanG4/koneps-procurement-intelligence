@@ -24,7 +24,9 @@ Why recent 12 months first:
 - verify join cardinality
 - create first EDA/ML notebooks quickly
 
-## Phase 2 — Join design
+*Status*: 1-month pilot benchmark (2026-08) completed (2.26M raw rows, 2.25M Parquet rows). Empirical volumes, rates, and pagination verified.
+
+## Phase 2 — Join design (Next Milestone: Cross-feed join cardinality design)
 
 Candidate grain:
 
