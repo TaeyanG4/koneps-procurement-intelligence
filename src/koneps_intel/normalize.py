@@ -277,7 +277,7 @@ def ingest_bidder_report(
             df[col] = clean_boolean(df[col])
 
     # Date cleaning
-    date_aliases = ["bid_submission_date", "contract_date", "bid_notice_date", "opening_datetime"]
+    date_aliases = ["bid_submission_date", "contract_date", "bid_notice_date", "opening_date", "opening_datetime"]
     for col in date_aliases:
         if col in df.columns:
             df[col] = clean_datetime(df[col])

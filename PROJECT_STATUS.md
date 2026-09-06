@@ -7,16 +7,22 @@ This document tracks the implementation progress and development milestones for 
 ## Milestone Checklist
 
 ### Core Engineering & Pipeline Setup
-- [x] Production repository and modular package structure (`src/koneps_intel/`, `scripts/`)
-- [x] Robust, fault-tolerant API client (`KonepsClient`) with exponential backoff and XML error parsing
-- [x] Safe credential handling and zero-secret logging
+- [x] Modular package structure (`src/koneps_intel/`, `scripts/`)
+- [x] Resilient API client (`KonepsClient`) with exponential backoff and XML error parsing
+- [x] Proper transient error retry on HTTP 429, 500, 502, 503, 504 and network timeouts
+- [x] Non-retryable error handling (400, 401, 403, 404, 405) with immediate fast-fail
+- [x] API quota exhaustion detection and graceful pipeline termination
+- [x] Safe credential handling and zero-secret logging with key masking
 - [x] Immutable raw storage in `.jsonl.gz` with atomic writes
-- [x] Completion manifest and resumable collection tracking (`ManifestManager`)
+- [x] Strict raw storage category validation (`expected_category`) preventing feed contamination
+- [x] Manifest tracking (`manifest.json`) with automatic recovery and repair across failure scenarios
 - [x] High-performance Parquet normalization with Hive date-partitioning (`year=YYYY/month=MM/`)
-- [x] Bidder report ingestion pipeline (`ingest_bidder_report.py`) with CSV and Excel support
+- [x] Type casting with nullable boolean (`boolean` dtype) and datetime normalization (`datetime64[ns]`)
+- [x] Bidder report ingestion pipeline (`ingest_bidder_report.py`) supporting CSV (`utf-8-sig`, `cp949`), `.xlsx`, and real binary `.xls` (via `xlrd`)
 - [x] Data quality and anomaly validation engine (`quality_check.py`)
-- [x] Comprehensive mock unit and integration test suite (100% pass rate without live API requirement)
-- [x] GitHub Actions CI workflow for Python 3.11 and 3.12
+- [x] Unit and integration test suite passing 100% without requiring live API keys
+- [x] Dual-language documentation policy: Korean-first (`README.md`) and English (`README.en.md`)
+- [x] GitHub Actions CI workflow for Python 3.11 and 3.12 (`.[dev]`)
 - [x] Complete technical documentation (`DATA_SOURCES.md`, `DATA_DICTIONARY.md`, `ARCHITECTURE.md`)
 
 ---
@@ -28,6 +34,6 @@ This document tracks the implementation progress and development milestones for 
 - [ ] 1-year historical MVP collected
 - [ ] Official bidder outcome report export ingested into `data/processed/bidder_outcomes/`
 - [ ] Empirical key and cardinality validation executed (Tender 1:N Bidder, 1:1 Award, 1:N Contract)
-- [ ] Procurement master dataset built without row duplication bugs
+- [ ] Procurement master dataset built without row duplication
 - [ ] Leak-free ML feature tables generated (competition metrics, win rate history, agency price variance)
-- [ ] Kaggle Gold Dataset v1 packaged, documented, and published with baseline EDA notebook
+- [ ] Curated research dataset v1 packaged, documented, and published with baseline EDA notebook

@@ -203,22 +203,32 @@ def test_ingest_bidder_report_xlsx(tmp_path):
     assert pd.api.types.is_datetime64_any_dtype(df_out["bid_submission_date"])
 
 
-def test_ingest_bidder_report_xls_support(tmp_path, monkeypatch):
-    from unittest.mock import MagicMock
-    mock_df = pd.DataFrame({
-        "입찰공고번호": ["20260901002"],
-        "공고명": ["XLS 테스트"],
-        "업체명": ["(주)엑셀"],
-        "투찰금액": ["100,000"],
-        "낙찰자선정여부": ["N"],
-    })
-    monkeypatch.setattr(pd, "read_excel", MagicMock(return_value=mock_df))
+def test_ingest_bidder_report_real_xls(tmp_path):
+    xls_file = FIXTURES_DIR / "sample_bidder_report.xls"
+    out_parquet = tmp_path / "real_xls_out.parquet"
 
-    fake_xls = tmp_path / "report.xls"
-    fake_xls.write_bytes(b"dummy")
+    df = ingest_bidder_report(xls_file, out_parquet)
+    assert out_parquet.exists()
+    assert len(df) == 2
 
-    out_parquet = tmp_path / "xls_out.parquet"
-    df_out = ingest_bidder_report(fake_xls, out_parquet)
-    assert len(df_out) == 1
-    assert df_out["bid_notice_no"].iloc[0] == "20260901002"
-    assert df_out["is_selected_winner"].iloc[0] is False or df_out["is_selected_winner"].iloc[0] == False
+    # Canonical aliases generated
+    assert "bid_notice_no" in df.columns
+    assert "opening_date" in df.columns
+    assert "bidder_name_ko" in df.columns
+    assert "bid_amount_krw" in df.columns
+    assert "is_selected_winner" in df.columns
+
+    # opening_date normalized to datetime64[ns]
+    assert pd.api.types.is_datetime64_any_dtype(df["opening_date"])
+    assert df["opening_date"].iloc[0] == pd.Timestamp("2026-09-01")
+
+    # Numeric and boolean types correctly coerced
+    assert df["bid_amount_krw"].iloc[0] == 850000000
+    assert df["is_selected_winner"].dtype.name == "boolean"
+    assert bool(df["is_selected_winner"].iloc[0]) is True
+    assert bool(df["is_selected_winner"].iloc[1]) is False
+
+    # Parquet round-trip preserves datetime-compatible type
+    df_pq = pd.read_parquet(out_parquet)
+    assert pd.api.types.is_datetime64_any_dtype(df_pq["opening_date"])
+    assert df_pq["opening_date"].iloc[0] == pd.Timestamp("2026-09-01")

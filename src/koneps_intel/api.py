@@ -39,6 +39,16 @@ class PermanentApiError(KonepsApiError):
 class TransientApiError(KonepsApiError):
     """Raised for retryable server-side failures (429, 500, 502, 503, 504)."""
 
+    def __init__(
+        self,
+        message: str,
+        response: Optional[Any] = None,
+        status_code: Optional[int] = None,
+    ):
+        super().__init__(message)
+        self.response = response
+        self.status_code = status_code or (response.status_code if response is not None else None)
+
 
 TRANSIENT_STATUS_CODES = {429, 500, 502, 503, 504}
 
@@ -85,7 +95,7 @@ class KonepsClient:
                     raise TransientApiError(f"Transient HTTP {resp.status_code}", response=resp)
 
                 # Permanent HTTP client errors (non-retryable, e.g. 400, 401, 403, 404)
-                if 400 <= resp.status_code < 500:
+                if 400 <= resp.status_code < 500 and resp.status_code not in TRANSIENT_STATUS_CODES:
                     raise PermanentApiError(f"Permanent HTTP {resp.status_code}: {resp.text[:200]}")
 
                 resp.raise_for_status()

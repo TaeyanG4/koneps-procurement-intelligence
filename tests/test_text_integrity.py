@@ -60,11 +60,19 @@ def test_no_double_question_mark_corruption():
 
 
 def test_authentic_unicode_and_korean_strings():
-    """Ensure key documentation and source files contain expected authentic Korean text."""
+    """Ensure key documentation and source files contain expected authentic Korean text and proper language links."""
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    assert readme.startswith("# 대한민국 공공조달 인텔리전스 — KONEPS"), "README.md must start with Korean title"
+    assert "**한국어** | [English](README.en.md)" in readme, "README.md missing language selector"
     assert "—" in readme, "README.md missing Unicode em dash"
     assert "국가종합전자조달시스템" in readme, "README.md missing KONEPS Korean translation"
+    assert "나라장터" in readme, "README.md missing Narajangteo Korean term"
     assert "조달청" in readme, "README.md missing Public Procurement Service Korean name"
+    assert "공공누리" in readme, "README.md missing KOGL Korean term"
+
+    readme_en = (REPO_ROOT / "README.en.md").read_text(encoding="utf-8")
+    assert readme_en.startswith("# South Korea Public Procurement Intelligence — KONEPS"), "README.en.md must start with English title"
+    assert "[한국어](README.md) | **English**" in readme_en, "README.en.md missing language selector"
 
     endpoints = (REPO_ROOT / "src" / "koneps_intel" / "endpoints.py").read_text(encoding="utf-8")
     for expected in ["물품", "외자", "공사", "용역", "업무구분"]:
@@ -73,3 +81,4 @@ def test_authentic_unicode_and_korean_strings():
     data_sources = (REPO_ROOT / "docs" / "DATA_SOURCES.md").read_text(encoding="utf-8")
     assert "공공누리" in data_sources, "DATA_SOURCES.md missing KOGL Korean term"
     assert "조달청" in data_sources, "DATA_SOURCES.md missing agency name"
+

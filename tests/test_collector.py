@@ -228,3 +228,108 @@ def test_cli_collect_standard_quota_exit_code_3(monkeypatch, tmp_path):
         with pytest.raises(SystemExit) as exc_info:
             collect_standard.main()
         assert exc_info.value.code == 3
+
+
+def test_collector_category_match_skips(tmp_path):
+    mock_client = MagicMock()
+    mock_client.calls = 0
+    out_dir = tmp_path / "raw"
+    collector = Collector(client=mock_client, out_dir=out_dir)
+
+    spec = FEEDS["awards"]
+    start = date(2026, 9, 1)
+    end = date(2026, 9, 1)
+    category = "1"  # goods
+
+    path = RawStorage.get_window_path(out_dir, spec.name, "goods", "20260901", "20260901")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    meta = {
+        "feed": spec.name,
+        "operation": spec.operation,
+        "window_start": start.isoformat(),
+        "window_end": end.isoformat(),
+        "business_code": "1",
+        "status": "complete",
+        "rows": 1,
+        "total_expected": 1,
+        "api_calls": 1,
+        "collected_at_utc": "2026-09-01T12:00:00Z",
+    }
+    with gzip.open(path, "wt", encoding="utf-8") as f:
+        f.write(json.dumps({"__collector_meta__": meta}) + "\n")
+        f.write(json.dumps({"awardNo": "AW01"}) + "\n")
+
+    # Record in manifest
+    rec = ManifestRecord(
+        dataset=spec.name,
+        endpoint=spec.operation,
+        start=start.isoformat(),
+        end=end.isoformat(),
+        category="1",
+        download_timestamp="2026-09-01T12:00:00Z",
+        row_count=1,
+        total_expected=1,
+        api_calls=1,
+        status="complete",
+        source_filename=path.name,
+    )
+    collector.manifest.record(rec)
+
+    # Calling collect_window for category 1 should match and skip
+    rows, calls, out_path = collector.collect_window(
+        spec, start, end, page_size=10, business_code="1", force=False
+    )
+    assert rows == 0
+    assert calls == 0
+    assert mock_client.get_page.call_count == 0
+
+
+def test_collector_category_mismatch_invalidates(tmp_path):
+    mock_client = MagicMock()
+    mock_client.calls = 0
+
+    def mock_get_page(*args, **kwargs):
+        mock_client.calls += 1
+        return ([{"awardNo": "CORRECT_GOODS"}], 1)
+
+    mock_client.get_page.side_effect = mock_get_page
+
+    out_dir = tmp_path / "raw"
+    collector = Collector(client=mock_client, out_dir=out_dir)
+
+    spec = FEEDS["awards"]
+    start = date(2026, 9, 1)
+    end = date(2026, 9, 1)
+
+    # Create raw file at the path for category 1 (goods), but with metadata saying business_code="3" (construction)
+    path = RawStorage.get_window_path(out_dir, spec.name, "goods", "20260901", "20260901")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    mismatched_meta = {
+        "feed": spec.name,
+        "operation": spec.operation,
+        "window_start": start.isoformat(),
+        "window_end": end.isoformat(),
+        "business_code": "3",  # Mismatched! Expected 1
+        "status": "complete",
+        "rows": 1,
+        "total_expected": 1,
+        "api_calls": 1,
+        "collected_at_utc": "2026-09-01T12:00:00Z",
+    }
+    with gzip.open(path, "wt", encoding="utf-8") as f:
+        f.write(json.dumps({"__collector_meta__": mismatched_meta}) + "\n")
+        f.write(json.dumps({"awardNo": "WRONG_CONSTRUCTION"}) + "\n")
+
+    # Call collect_window expecting category "1"
+    rows, calls, out_path = collector.collect_window(
+        spec, start, end, page_size=10, business_code="1", force=False
+    )
+
+    # Should detect category mismatch, remove stale file, call API, and write clean file with category 1
+    assert rows == 1
+    assert calls == 1
+    assert mock_client.calls == 1
+
+    meta, items = RawStorage.read_window(out_path)
+    assert meta["business_code"] == "1"
+    assert items[0]["awardNo"] == "CORRECT_GOODS"

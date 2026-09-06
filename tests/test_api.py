@@ -124,6 +124,83 @@ def test_client_retry_server_error(mock_session):
     assert client.calls == 2
 
 
+def test_client_retry_real_response_500(mock_session):
+    resp_500 = MagicMock()
+    resp_500.status_code = 500
+    resp_500.text = "Internal Server Error"
+
+    resp_200 = MagicMock()
+    resp_200.status_code = 200
+    resp_200.json.return_value = {
+        "response": {
+            "header": {"resultCode": "00"},
+            "body": {"items": [{"id": 101}], "totalCount": 1},
+        }
+    }
+
+    mock_session.get.side_effect = [resp_500, resp_200]
+
+    client = KonepsClient(service_key="test_key_123456", max_retries=3, pause=0.0, session=mock_session)
+    with patch("time.sleep"):
+        items, total = client.get_page("test_op", {})
+
+    assert len(items) == 1
+    assert total == 1
+    assert client.calls == 2
+    assert mock_session.get.call_count == 2
+
+
+def test_client_retry_real_response_429(mock_session):
+    resp_429 = MagicMock()
+    resp_429.status_code = 429
+    resp_429.text = "Too Many Requests"
+
+    resp_200 = MagicMock()
+    resp_200.status_code = 200
+    resp_200.json.return_value = {
+        "response": {
+            "header": {"resultCode": "00"},
+            "body": {"items": [{"id": 202}], "totalCount": 1},
+        }
+    }
+
+    mock_session.get.side_effect = [resp_429, resp_200]
+
+    client = KonepsClient(service_key="test_key_123456", max_retries=3, pause=0.0, session=mock_session)
+    with patch("time.sleep"):
+        items, total = client.get_page("test_op", {})
+
+    assert len(items) == 1
+    assert total == 1
+    assert client.calls == 2
+    assert mock_session.get.call_count == 2
+
+
+def test_client_retry_transient_network_error(mock_session):
+    resp_200 = MagicMock()
+    resp_200.status_code = 200
+    resp_200.json.return_value = {
+        "response": {
+            "header": {"resultCode": "00"},
+            "body": {"items": [{"id": 303}], "totalCount": 1},
+        }
+    }
+
+    mock_session.get.side_effect = [
+        requests.Timeout("Connection timed out"),
+        resp_200,
+    ]
+
+    client = KonepsClient(service_key="test_key_123456", max_retries=3, pause=0.0, session=mock_session)
+    with patch("time.sleep"):
+        items, total = client.get_page("test_op", {})
+
+    assert len(items) == 1
+    assert total == 1
+    assert client.calls == 2
+    assert mock_session.get.call_count == 2
+
+
 def test_client_client_error_no_retry(mock_session):
     err_resp = MagicMock()
     err_resp.status_code = 404

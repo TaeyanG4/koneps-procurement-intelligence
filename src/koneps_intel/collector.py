@@ -64,6 +64,7 @@ class Collector:
                     expected_feed=spec.name,
                     expected_start=start.isoformat(),
                     expected_end=end.isoformat(),
+                    expected_category=business_code,
                 )
                 if is_valid:
                     if is_done:

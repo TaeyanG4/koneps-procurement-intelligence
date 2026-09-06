@@ -172,6 +172,13 @@ class RawStorage:
         if expected_end and meta.get("window_end") != expected_end:
             return False, f"Window end mismatch: expected {expected_end}, got {meta.get('window_end')}", meta, rows
 
+        if expected_category is not None:
+            actual_category = meta.get("business_code")
+            exp_str = str(expected_category).strip()
+            act_str = str(actual_category).strip() if actual_category is not None else ""
+            if act_str != exp_str:
+                return False, f"Business category mismatch: expected {expected_category}, got {actual_category}", meta, rows
+
         # Verify row count if recorded in final metadata
         expected_rows = meta.get("rows")
         if expected_rows is not None and int(expected_rows) != rows:
