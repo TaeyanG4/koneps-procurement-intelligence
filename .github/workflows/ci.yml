@@ -37,3 +37,8 @@ jobs:
       - name: Run unit and integration tests
         run: |
           pytest -v
+
+      - name: Verify documentation freshness and DOCX integrity
+        run: |
+          python scripts/build_docs.py --check
+

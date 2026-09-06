@@ -1,0 +1,497 @@
+{
+  "metadata": {
+    "generated_at": "2026-09-06T21:56:12.304814+00:00",
+    "audit_scope_start": "2026-08-01",
+    "audit_scope_end": "2026-08-31",
+    "generator": "koneps_intel.audit"
+  },
+  "collection": {
+    "total_windows": 130,
+    "total_raw_rows": 2268948,
+    "total_api_calls": 2365,
+    "feeds": {
+      "bids": {
+        "windows": 1,
+        "raw_rows": 32895,
+        "api_calls": 33
+      },
+      "contracts": {
+        "windows": 5,
+        "raw_rows": 115945,
+        "api_calls": 119
+      },
+      "awards": {
+        "windows": 124,
+        "raw_rows": 2120108,
+        "api_calls": 2213,
+        "categories": {
+          "goods": {
+            "category_code": "1",
+            "windows": 31,
+            "raw_rows": 328201,
+            "api_calls": 347
+          },
+          "foreign": {
+            "category_code": "2",
+            "windows": 31,
+            "raw_rows": 132,
+            "api_calls": 31
+          },
+          "construction": {
+            "category_code": "3",
+            "windows": 31,
+            "raw_rows": 1646350,
+            "api_calls": 1668
+          },
+          "service": {
+            "category_code": "5",
+            "windows": 31,
+            "raw_rows": 145425,
+            "api_calls": 167
+          }
+        }
+      }
+    }
+  },
+  "deduplication": {
+    "categories": {
+      "goods": {
+        "scoped_raw_rows": 328201,
+        "exact_duplicates": 2540,
+        "legacy_candidate_key_duplicates": 4593,
+        "current_candidate_key_duplicates": 3526,
+        "preserved_distinct_submissions_vs_legacy": 1067,
+        "non_exact_candidate_key_collisions": 986,
+        "key_component_null_rates": {
+          "bidNtceNo": 0.0,
+          "bidNtceOrd": 0.0,
+          "bidprcCorpBizrno": 0.0,
+          "opengRank": 0.0,
+          "dqlfctnRsn": 0.0,
+          "bidprcAmt": 0.0,
+          "bidprcTm": 0.0
+        },
+        "collision_classification": {
+          "AWARD_BACKFILL": 876,
+          "PRICE_BACKFILL": 34,
+          "SAME_SUBMISSION_STATUS_UPDATE": 76
+        }
+      },
+      "foreign": {
+        "scoped_raw_rows": 132,
+        "exact_duplicates": 9,
+        "legacy_candidate_key_duplicates": 9,
+        "current_candidate_key_duplicates": 9,
+        "preserved_distinct_submissions_vs_legacy": 0,
+        "non_exact_candidate_key_collisions": 0,
+        "key_component_null_rates": {
+          "bidNtceNo": 0.0,
+          "bidNtceOrd": 0.0,
+          "bidprcCorpBizrno": 0.0,
+          "opengRank": 0.0,
+          "dqlfctnRsn": 0.0,
+          "bidprcAmt": 0.0,
+          "bidprcTm": 0.0
+        },
+        "collision_classification": {}
+      },
+      "construction": {
+        "scoped_raw_rows": 1646350,
+        "exact_duplicates": 6050,
+        "legacy_candidate_key_duplicates": 6074,
+        "current_candidate_key_duplicates": 6074,
+        "preserved_distinct_submissions_vs_legacy": 0,
+        "non_exact_candidate_key_collisions": 24,
+        "key_component_null_rates": {
+          "bidNtceNo": 0.0,
+          "bidNtceOrd": 0.0,
+          "bidprcCorpBizrno": 0.0,
+          "opengRank": 0.0,
+          "dqlfctnRsn": 0.0,
+          "bidprcAmt": 0.0,
+          "bidprcTm": 0.0
+        },
+        "collision_classification": {
+          "SAME_SUBMISSION_STATUS_UPDATE": 12,
+          "PRICE_BACKFILL": 12
+        }
+      },
+      "service": {
+        "scoped_raw_rows": 145425,
+        "exact_duplicates": 2490,
+        "legacy_candidate_key_duplicates": 2551,
+        "current_candidate_key_duplicates": 2551,
+        "preserved_distinct_submissions_vs_legacy": 0,
+        "non_exact_candidate_key_collisions": 61,
+        "key_component_null_rates": {
+          "bidNtceNo": 0.0,
+          "bidNtceOrd": 0.0,
+          "bidprcCorpBizrno": 0.0,
+          "opengRank": 0.0,
+          "dqlfctnRsn": 0.0,
+          "bidprcAmt": 0.0,
+          "bidprcTm": 0.0
+        },
+        "collision_classification": {
+          "SAME_SUBMISSION_STATUS_UPDATE": 39,
+          "PRICE_BACKFILL": 22
+        }
+      }
+    },
+    "summary": {
+      "total_scoped_raw_rows": 2120108,
+      "total_exact_duplicates": 11089,
+      "total_legacy_candidate_key_duplicates": 13227,
+      "total_current_candidate_key_duplicates": 12160,
+      "total_preserved_distinct_submissions_vs_legacy": 1067,
+      "total_non_exact_collisions": 1071,
+      "total_removed_rows": 12160,
+      "deduplication_accounting_reconciled": true,
+      "collision_classification_overall": {
+        "AWARD_BACKFILL": 876,
+        "PRICE_BACKFILL": 68,
+        "SAME_SUBMISSION_STATUS_UPDATE": 127
+      },
+      "deduplication_grain_decision": "Frozen 7-column lossless bidder submission grain: ['bidNtceNo', 'bidNtceOrd', 'bidprcCorpBizrno', 'opengRank', 'dqlfctnRsn', 'bidprcAmt', 'bidprcTm']. Collisions collapsed by current key are 100% verified administrative updates (AWARD_BACKFILL, SAME_SUBMISSION_STATUS_UPDATE, PRICE_BACKFILL). DISTINCT_SUBMISSION: 0, DISTINCT_CLASSIFICATION_OR_LOT: 0, UNRESOLVED: 0. Legacy 5-key collapsed 1,067 distinct multi-lot/item submissions which are now fully preserved."
+    }
+  },
+  "processed_summary": {
+    "bids_rows": 32895,
+    "contracts_rows": 115945,
+    "awards_rows": 2107948,
+    "total_processed_rows": 2256788,
+    "awards_by_category": {
+      "공사": 1640276,
+      "물품": 324675,
+      "용역": 142874,
+      "외자": 123
+    }
+  },
+  "winner_cardinality": {
+    "total_distinct_tenders": 24978,
+    "selected_winner_flag_distribution": {
+      "0_winners": 8197,
+      "1_winner": 16741,
+      "2_or_more_winners": 40,
+      "detailed_counts": {
+        "0": 8197,
+        "1": 16741,
+        "2": 17,
+        "3": 6,
+        "4": 5,
+        "5": 3,
+        "6": 1,
+        "7": 2,
+        "8": 1,
+        "10": 1,
+        "12": 1,
+        "26": 1,
+        "108": 1,
+        "303": 1
+      }
+    },
+    "distinct_winner_biz_no_distribution": {
+      "0_winners": 8191,
+      "1_winner": 16762,
+      "2_or_more_winners": 25,
+      "detailed_counts": {
+        "0": 8191,
+        "1": 16762,
+        "2": 11,
+        "3": 7,
+        "4": 4,
+        "6": 2,
+        "7": 1
+      }
+    },
+    "multi_winner_investigation": {
+      "count_tenders_with_2plus_winners": 40,
+      "structural_causes": "Tenders with multiple items/classifications, joint contracts (공동도급), or lot-based awards where each item produces a separate winning bidder.",
+      "sample_cases": [
+        {
+          "bid_notice_no": "R26BK01634241",
+          "bid_notice_round": "000",
+          "winner_rows": 2,
+          "distinct_biz_nos": 1,
+          "bid_amounts": [
+            20377500.0,
+            12540000.0
+          ],
+          "award_amounts": [
+            20377500.0,
+            12540000.0
+          ]
+        },
+        {
+          "bid_notice_no": "R26BK01644662",
+          "bid_notice_round": "000",
+          "winner_rows": 4,
+          "distinct_biz_nos": 1,
+          "bid_amounts": [
+            109500.0,
+            109500.0,
+            60000.0,
+            60000.0
+          ],
+          "award_amounts": [
+            109500.0,
+            109500.0,
+            60000.0,
+            60000.0
+          ]
+        },
+        {
+          "bid_notice_no": "R26BK01645359",
+          "bid_notice_round": "001",
+          "winner_rows": 5,
+          "distinct_biz_nos": 2,
+          "bid_amounts": [
+            53149030.0,
+            48000000.0,
+            43000000.0,
+            12000000.0,
+            48600000.0
+          ],
+          "award_amounts": [
+            53149030.0,
+            48000000.0,
+            43000000.0,
+            12000000.0,
+            48600000.0
+          ]
+        },
+        {
+          "bid_notice_no": "R26BK01649062",
+          "bid_notice_round": "000",
+          "winner_rows": 26,
+          "distinct_biz_nos": 3,
+          "bid_amounts": [
+            619080.0,
+            974100.0,
+            1205700.0,
+            10173130.0,
+            2565200.0,
+            5540040.0,
+            752400.0,
+            674630.0,
+            2461580.0,
+            1518000.0,
+            1431700.0,
+            11558250.0,
+            833800.0,
+            33189700.0,
+            186800.0,
+            1763800.0,
+            17534550.0,
+            510400.0,
+            3245100.0,
+            359400.0,
+            61723800.0,
+            506200.0,
+            6701200.0,
+            62032600.0,
+            53148870.0,
+            8679220.0
+          ],
+          "award_amounts": [
+            619080.0,
+            974100.0,
+            1205700.0,
+            10173130.0,
+            2565200.0,
+            5540040.0,
+            752400.0,
+            674630.0,
+            2461580.0,
+            1518000.0,
+            1431700.0,
+            11558250.0,
+            833800.0,
+            33189700.0,
+            186800.0,
+            1763800.0,
+            17534550.0,
+            510400.0,
+            3245100.0,
+            359400.0,
+            61723800.0,
+            506200.0,
+            6701200.0,
+            62032600.0,
+            53148870.0,
+            8679220.0
+          ]
+        },
+        {
+          "bid_notice_no": "R26BK01653973",
+          "bid_notice_round": "000",
+          "winner_rows": 2,
+          "distinct_biz_nos": 2,
+          "bid_amounts": [
+            282.8,
+            2811.0
+          ],
+          "award_amounts": [
+            282.8,
+            2811.0
+          ]
+        }
+      ]
+    },
+    "award_outcome_grain_recommendation": "Tender (1) : Award Outcomes (0..N). Primary key: (bid_notice_no, bid_notice_round, winner_business_registration_no, award_amount_krw, bid_submission_time). Verified 0 duplicates on August 2026 pilot."
+  },
+  "cardinality": {
+    "bids_to_awards": {
+      "distinct_bids_tenders": 32895,
+      "distinct_awards_tenders": 24978,
+      "tenders_in_both": 17853,
+      "tenders_only_in_bids": 15042,
+      "tenders_only_in_awards": 7125,
+      "bidders_per_tender_overall": {
+        "min": 1,
+        "p25": 1.0,
+        "median": 3.0,
+        "mean": 84.39,
+        "p75": 29.0,
+        "p90": 168.0,
+        "max": 9675
+      },
+      "bidders_per_tender_by_category": {
+        "construction": {
+          "mean": 240.93,
+          "median": 57.0,
+          "max": 9675
+        },
+        "goods": {
+          "mean": 37.02,
+          "median": 2.0,
+          "max": 6052
+        },
+        "foreign": {
+          "mean": 1.19,
+          "median": 1.0,
+          "max": 4
+        },
+        "service": {
+          "mean": 15.37,
+          "median": 2.0,
+          "max": 2297
+        }
+      }
+    },
+    "bids_to_contracts": {
+      "total_contracts_rows": 115945,
+      "contracts_with_tender_link": 40677,
+      "tender_link_ratio": 0.3508,
+      "contracts_without_tender_link": 75268,
+      "unlinked_ratio": 0.6492,
+      "unlinked_contract_method_breakdown": {
+        "수의계약 (private_contract)": 72418,
+        "지명경쟁 (limited_competitive)": 181,
+        "일반경쟁 (general_competitive)": 976
+      },
+      "unlinked_nuance_statement": "64.92% of contract rows do not contain a directly linkable bid notice identifier. Among these unlinked contracts, 96.21% are private contracts (수의계약, observed 72,418 rows), while 3.79% are competitive/other contracts without public notice IDs (observed 2,850 rows).",
+      "tenders_with_0_contracts": 23996,
+      "tenders_with_1_contract": 8691,
+      "tenders_with_2plus_contracts": 208
+    },
+    "contracts_untyCntrctNo_integrity": {
+      "total_rows": 115945,
+      "non_null_count": 115945,
+      "null_ratio": 0.0,
+      "unique_count": 115945,
+      "duplicate_count": 0,
+      "is_strictly_unique": true
+    },
+    "suppliers_dimension": {
+      "distinct_10digit_bidders": 123777,
+      "distinct_10digit_winners": 13376,
+      "distinct_10digit_contractors": 59233,
+      "total_unique_10digit_suppliers": 143842,
+      "bidders_with_contracts_in_month": 39168,
+      "winners_with_contracts_in_month": 11370,
+      "winner_to_contract_match_rate": 0.85
+    },
+    "agencies_dimension": {
+      "distinct_notice_agencies_bids": 5690,
+      "distinct_demand_agencies_bids": 5905,
+      "distinct_contract_agencies_contracts": 12347,
+      "distinct_demand_agencies_contracts": 12509,
+      "total_unique_agencies_across_feeds": 14091
+    }
+  },
+  "pagination": {
+    "consecutive_identical_raw_lines": {
+      "status": "VERIFIED",
+      "value": 7901,
+      "evidence": "Scanned all scoped raw gzip files for immediately adjacent identical lines."
+    },
+    "raw_row_count_vs_manifest_expected": {
+      "status": "VERIFIED",
+      "value": {
+        "manifest_expected_rows": 2268948,
+        "raw_file_rows": 2268948,
+        "is_match": true
+      },
+      "evidence": "Line-by-line file accounting matches manifest window totals."
+    },
+    "event_date_boundary_integrity": {
+      "status": "VERIFIED",
+      "value": {
+        "audit_scope_start": "2026-08-01",
+        "audit_scope_end": "2026-08-31",
+        "strictly_scoped": true
+      },
+      "evidence": "Strict event date filtering enforced across bid_notice_date, opening_date, and contract_date."
+    },
+    "adjacent_page_boundary_duplicates": {
+      "status": "NOT_RETROACTIVELY_VERIFIABLE",
+      "value": null,
+      "reason": "Page boundary line indices were not recorded in pilot raw stream; future collections capture page receipts."
+    },
+    "per_page_sha256_hash_fingerprints": {
+      "status": "NOT_RETROACTIVELY_VERIFIABLE",
+      "value": null,
+      "reason": "Per-page SHA-256 hashes not captured in pilot JSONL stream; collector hook records future receipts in data/logs/page_receipts/."
+    },
+    "upstream_api_totalCount_midstream_drift": {
+      "status": "NOT_RETROACTIVELY_VERIFIABLE",
+      "value": null,
+      "reason": "Upstream API totalCount is reported only at envelope level, not per row record."
+    },
+    "first_last_record_fingerprint_collisions": {
+      "status": "NOT_RETROACTIVELY_VERIFIABLE",
+      "value": null,
+      "reason": "Requires page-level receipts with first_record_hash and last_record_hash."
+    },
+    "page_number_loops": {
+      "status": "NOT_RETROACTIVELY_VERIFIABLE",
+      "value": null,
+      "reason": "Requires page execution receipts introduced in collector observability hook."
+    },
+    "future_observability_status": {
+      "page_receipts_hook_implemented": true,
+      "receipts_storage_path": "data/logs/page_receipts/",
+      "receipts_schema": [
+        "dataset",
+        "window_start",
+        "window_end",
+        "category",
+        "page_no",
+        "page_row_count",
+        "reported_total_count",
+        "first_record_hash",
+        "last_record_hash",
+        "page_hash",
+        "request_timestamp"
+      ]
+    }
+  },
+  "storage": {
+    "raw_jsonl_gz_bytes": 131322271,
+    "raw_jsonl_gz_mb": 125.24,
+    "processed_parquet_bytes": 148156166,
+    "processed_parquet_mb": 141.29,
+    "raw_to_parquet_ratio": 1.1282
+  }
+}

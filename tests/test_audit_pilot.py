@@ -1,4 +1,4 @@
-"""Unit and integration tests for the pilot audit engine and deduplication forensics."""
+"""Unit and integration tests for the pilot audit engine, deduplication forensics, and relational grains."""
 from __future__ import annotations
 
 import json
@@ -7,8 +7,12 @@ import pandas as pd
 import pytest
 
 from koneps_intel.audit import run_audit, clean_biz_no
-from koneps_intel.config import PROCESSED_DIR, RAW_DIR
+from koneps_intel.config import PROJECT_ROOT
+from koneps_intel.privacy import generate_supplier_id
 from koneps_intel.schemas import DEDUPLICATION_KEYS
+
+FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "audit"
+DOCS_METRICS_PATH = PROJECT_ROOT / "docs" / "metrics" / "pilot_2026_08.json"
 
 
 def test_clean_biz_no():
@@ -22,60 +26,70 @@ def test_clean_biz_no():
     assert cleaned.iloc[4] == ""
 
 
-def test_deterministic_json_metrics_output(tmp_path: Path):
-    """Verify that run_audit generates a valid deterministic JSON metrics artifact."""
-    out_file = tmp_path / "test_metrics.json"
+def test_supplier_public_id_policy():
+    """Verify non-enumerable supplier ID generation with HMAC-SHA256."""
+    fake_key = b"test_secret_salt_key_12345"
+    id1 = generate_supplier_id("123-45-67890", fake_key)
+    id2 = generate_supplier_id("1234567890", fake_key)
+    id3 = generate_supplier_id("987-65-43210", fake_key)
 
-    # Test deterministic metrics generation using a lightweight isolated workspace
+    assert id1.startswith("SUP_")
+    assert len(id1) == 20  # "SUP_" (4) + 16 hex chars
+    assert id1 == id2, "Normalized biz nos must produce identical supplier IDs"
+    assert id1 != id3, "Different biz nos must produce distinct supplier IDs"
+    assert generate_supplier_id("", fake_key) == ""
+
+
+def test_deterministic_json_metrics_output(tmp_path: Path):
+    """Verify that run_audit with fixed generation_timestamp produces byte-for-byte identical output."""
+    out_file1 = tmp_path / "metrics_run1.json"
+    out_file2 = tmp_path / "metrics_run2.json"
+
+    # Setup isolated test workspace
     mock_raw = tmp_path / "raw"
     mock_raw.mkdir()
     (mock_raw / "manifest.json").write_text("[]", encoding="utf-8")
     mock_processed = tmp_path / "processed"
     mock_processed.mkdir()
 
-    metrics = run_audit(
+    fixed_ts = "2026-08-31T23:59:59.000000+00:00"
+    m1 = run_audit(
         start="2026-08-01",
         end="2026-08-31",
         raw_dir=mock_raw,
         processed_dir=mock_processed,
-        output_path=out_file,
+        output_path=out_file1,
+        generation_timestamp=fixed_ts,
     )
-    assert out_file.exists()
-    assert metrics["metadata"]["audit_scope_start"] == "2026-08-01"
-    assert metrics["metadata"]["audit_scope_end"] == "2026-08-31"
+    m2 = run_audit(
+        start="2026-08-01",
+        end="2026-08-31",
+        raw_dir=mock_raw,
+        processed_dir=mock_processed,
+        output_path=out_file2,
+        generation_timestamp=fixed_ts,
+    )
 
-    expected_sections = [
-        "metadata",
-        "collection",
-        "deduplication",
-        "processed_summary",
-        "winner_cardinality",
-        "cardinality",
-        "pagination",
-        "storage",
-    ]
-    for section in expected_sections:
-        assert section in metrics, f"Missing section in metrics: {section}"
+    assert out_file1.read_bytes() == out_file2.read_bytes(), "Audit runs with fixed timestamp must be byte-for-byte identical"
+    assert m1["metadata"]["generated_at"] == fixed_ts
 
 
-def test_audit_excludes_september_smoke_data():
+def test_audit_excludes_september_records():
     """Verify that August-scoped audit strictly excludes September 1 smoke records."""
-    metrics_path = PROCESSED_DIR / "audits" / "pilot_2026_08_metrics.json"
-    if not metrics_path.exists():
-        pytest.skip("Pilot audit metrics artifact not yet generated.")
+    assert DOCS_METRICS_PATH.exists(), f"Committed public snapshot missing: {DOCS_METRICS_PATH}"
 
-    with open(metrics_path, "r", encoding="utf-8") as f:
+    with open(DOCS_METRICS_PATH, "r", encoding="utf-8") as f:
         metrics = json.load(f)
 
-    # In collection: bids has 1 window (August only, 32895 rows, not 32895+1564)
+    # In collection: bids has 1 window (August only, 32895 rows, excluding Sep 1 1564 rows)
     assert metrics["collection"]["feeds"]["bids"]["windows"] == 1
     assert metrics["collection"]["feeds"]["bids"]["raw_rows"] == 32895
 
-    # Contracts has 5 windows (115945 rows, not 115945+6269)
+    # Contracts has 5 windows (115945 rows, excluding Sep 1 6269 rows)
     assert metrics["collection"]["feeds"]["contracts"]["windows"] == 5
     assert metrics["collection"]["feeds"]["contracts"]["raw_rows"] == 115945
 
-    # Awards has 124 windows (not 128)
+    # Awards has 124 windows (excluding Sep 1 4 windows)
     assert metrics["collection"]["feeds"]["awards"]["windows"] == 124
     assert metrics["collection"]["feeds"]["awards"]["raw_rows"] == 2120108
 
@@ -86,10 +100,10 @@ def test_audit_excludes_september_smoke_data():
 
 
 def test_dedup_collision_classification_logic():
-    """Test the forensic collision classification on synthetic records."""
-    from collections import Counter
+    """Test forensic collision classification on current 7-key vs legacy 5-key."""
+    curr_key = DEDUPLICATION_KEYS["awards"]
+    assert curr_key == ["bidNtceNo", "bidNtceOrd", "bidprcCorpBizrno", "opengRank", "dqlfctnRsn", "bidprcAmt", "bidprcTm"]
 
-    # Candidate key: ["bidNtceNo", "bidNtceOrd", "bidprcCorpBizrno", "opengRank", "dqlfctnRsn"]
     base_record = {
         "bidNtceNo": "R26BK00000001",
         "bidNtceOrd": "000",
@@ -106,35 +120,103 @@ def test_dedup_collision_classification_logic():
     # Case 1: Status update
     rec1_updated = dict(base_record, opengRsltDivNm="최종완료")
     df1 = pd.DataFrame([base_record, rec1_updated])
-    diff_cols = set(c for c in df1.columns if df1[c].nunique() > 1)
-    assert diff_cols == {"opengRsltDivNm"}
+    assert df1.duplicated(subset=curr_key).sum() == 1
 
-    # Case 2: Genuine distinct bidder event (different amount)
+    # Case 2: Genuine distinct bidder event (different amount and time)
+    # Must NOT be duplicate under current 7-key!
     rec2_diff_amt = dict(base_record, bidprcAmt="120000", bidprcTm="10:05")
     df2 = pd.DataFrame([base_record, rec2_diff_amt])
-    diff_cols2 = set(c for c in df2.columns if df2[c].nunique() > 1)
-    assert "bidprcAmt" in diff_cols2
-
-    # Case 3: Price field backfill
-    rec3_backfill = dict(base_record, rsrvtnPrce="106000")
-    df3 = pd.DataFrame([base_record, rec3_backfill])
-    diff_cols3 = set(c for c in df3.columns if df3[c].nunique() > 1)
-    assert diff_cols3 == {"rsrvtnPrce"}
+    assert df2.duplicated(subset=curr_key).sum() == 0, "Different submission amount/time must be preserved"
+    # But legacy 5-key incorrectly collapsed it:
+    legacy_key = ["bidNtceNo", "bidNtceOrd", "bidprcCorpBizrno", "opengRank", "dqlfctnRsn"]
+    assert df2.duplicated(subset=legacy_key).sum() == 1, "Legacy 5-key collapsed multi-lot bids"
 
 
-def test_winner_cardinality_structure():
-    """Test winner cardinality calculation logic."""
-    metrics_path = PROCESSED_DIR / "audits" / "pilot_2026_08_metrics.json"
-    if not metrics_path.exists():
-        pytest.skip("Pilot audit metrics artifact not yet generated.")
+def test_bidder_submission_candidate_grains():
+    """Test that Candidate B (omitting opengRank) collapses anonymous/negotiation bids, whereas Candidate A preserves them."""
+    # Case: negotiation bids where bizno and amount are blank, but opening ranks 1 and 2 are assigned
+    bids = [
+        {"bidNtceNo": "T_NEG", "bidNtceOrd": "000", "bidprcCorpBizrno": "", "opengRank": "1", "dqlfctnRsn": "", "bidprcAmt": "", "bidprcTm": ""},
+        {"bidNtceNo": "T_NEG", "bidNtceOrd": "000", "bidprcCorpBizrno": "", "opengRank": "2", "dqlfctnRsn": "", "bidprcAmt": "", "bidprcTm": ""},
+    ]
+    df = pd.DataFrame(bids)
 
-    with open(metrics_path, "r", encoding="utf-8") as f:
+    cand_A = ["bidNtceNo", "bidNtceOrd", "bidprcCorpBizrno", "opengRank", "dqlfctnRsn", "bidprcAmt", "bidprcTm"]
+    cand_B = ["bidNtceNo", "bidNtceOrd", "bidprcCorpBizrno", "bidprcTm", "bidprcAmt"]
+
+    assert df.duplicated(subset=cand_A).sum() == 0, "Candidate A preserves distinct ranks"
+    assert df.duplicated(subset=cand_B).sum() == 1, "Candidate B incorrectly collapses distinct ranked bidders"
+
+
+def test_synthetic_audit_fixtures_execution():
+    """Verify that synthetic audit fixtures execute properly and prove cardinality semantics."""
+    assert FIXTURES_DIR.exists(), "Fixtures directory must exist"
+
+    bids_aug = pd.read_parquet(FIXTURES_DIR / "aug_bids.parquet")
+    bids_sep = pd.read_parquet(FIXTURES_DIR / "sep_bids.parquet")
+    awards_aug = pd.read_parquet(FIXTURES_DIR / "aug_awards.parquet")
+    contracts_aug = pd.read_parquet(FIXTURES_DIR / "aug_contracts.parquet")
+
+    # 1. Tender PK uniqueness
+    assert bids_aug.duplicated(subset=["bid_notice_no", "bid_notice_round"]).sum() == 0
+
+    # 2. Winner cardinality (0, 1, 2+ winners)
+    winners = awards_aug[awards_aug["is_selected_winner"] == True]
+    win_counts = winners.groupby(["bid_notice_no", "bid_notice_round"]).size()
+    all_tenders = bids_aug[["bid_notice_no", "bid_notice_round"]].drop_duplicates()
+    zero_win = len(all_tenders) - len(win_counts)
+    one_win = (win_counts == 1).sum()
+    multi_win = (win_counts > 1).sum()
+
+    assert zero_win == 1, "TEST_TENDER_001 has 0 winners"
+    assert one_win == 1, "TEST_TENDER_002 has 1 winner"
+    assert multi_win == 1, "TEST_TENDER_003 has 2 winners (multi-lot)"
+
+    # 3. Contract PK uniqueness
+    assert contracts_aug["unified_contract_no"].is_unique
+
+    # 4. Tender-Contract relations (unlinked vs 1 vs N)
+    has_notice = contracts_aug[contracts_aug["bid_notice_no"].str.strip() != ""]
+    unlinked = contracts_aug[contracts_aug["bid_notice_no"].str.strip() == ""]
+    assert len(unlinked) == 1, "CNT_004 is unlinked private contract"
+    assert unlinked["contract_method_ko"].iloc[0] == "수의계약"
+
+    notice_cnt_counts = has_notice.groupby(["bid_notice_no", "bid_notice_round"]).size()
+    assert notice_cnt_counts.get(("TEST_TENDER_002", "000")) == 1
+    assert notice_cnt_counts.get(("TEST_TENDER_003", "000")) == 2, "TEST_TENDER_003 has 2 contracts (M:N bridge relation)"
+
+
+def test_pagination_verification_semantics():
+    """Verify that all pagination metrics have explicit status (VERIFIED or NOT_RETROACTIVELY_VERIFIABLE)."""
+    with open(DOCS_METRICS_PATH, "r", encoding="utf-8") as f:
         metrics = json.load(f)
 
-    win = metrics.get("winner_cardinality", {})
-    assert "selected_winner_flag_distribution" in win
-    dist = win["selected_winner_flag_distribution"]
-    assert dist["0_winners"] > 0
-    assert dist["1_winner"] > 0
-    assert dist["2_or_more_winners"] >= 0
-    assert "multi_winner_investigation" in win
+    pag = metrics.get("pagination", {})
+    for metric_name, details in pag.items():
+        if metric_name == "future_observability_status":
+            assert details["page_receipts_hook_implemented"] is True
+            continue
+        assert "status" in details, f"Pagination metric {metric_name} must have status"
+        assert details["status"] in {"VERIFIED", "NOT_RETROACTIVELY_VERIFIABLE", "SKIPPED"}
+
+
+def test_public_metrics_snapshot_reconciliation():
+    """Verify that committed public metrics snapshot reconciles mathematically."""
+    with open(DOCS_METRICS_PATH, "r", encoding="utf-8") as f:
+        m = json.load(f)
+
+    dedup = m["deduplication"]["summary"]
+    assert dedup["deduplication_accounting_reconciled"] is True
+    assert dedup["total_removed_rows"] == dedup["total_exact_duplicates"] + dedup["total_non_exact_collisions"]
+    assert dedup["total_preserved_distinct_submissions_vs_legacy"] == 1067
+
+    # Collision classes have 0 unresolved
+    classes = dedup["collision_classification_overall"]
+    assert classes.get("DISTINCT_SUBMISSION", 0) == 0
+    assert classes.get("DISTINCT_CLASSIFICATION_OR_LOT", 0) == 0
+    assert classes.get("UNRESOLVED", 0) == 0
+
+    # Ensure no PII in snapshot
+    json_text = json.dumps(m)
+    for pii_marker in ["주식회사", "사업자등록번호", "대표자", "010-"]:
+        assert pii_marker not in json_text

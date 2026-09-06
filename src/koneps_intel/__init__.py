@@ -16,11 +16,13 @@ from koneps_intel.api import (
 )
 from koneps_intel.collector import Collector
 from koneps_intel.endpoints import BUSINESS_DIVISIONS, FEEDS, FeedSpec
+from koneps_intel.privacy import generate_supplier_id
 from koneps_intel.quality import profile_dataframe, run_quality_checks
 from koneps_intel.storage import ManifestManager, RawStorage
 
 __all__ = [
     "__version__",
+    "generate_supplier_id",
     "KonepsClient",
     "KonepsApiError",
     "AuthenticationError",

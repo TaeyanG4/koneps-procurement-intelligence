@@ -1,0 +1,80 @@
+[
+  {
+    "dataset": "bids",
+    "endpoint": "getDataSetOpnStdBidPblancInfo",
+    "start": "2026-08-01",
+    "end": "2026-08-31",
+    "category": null,
+    "download_timestamp": "2026-08-31T23:59:59Z",
+    "row_count": 3,
+    "total_expected": 3,
+    "api_calls": 1,
+    "status": "complete",
+    "source_filename": "bids_all_20260801_20260831.jsonl.gz"
+  },
+  {
+    "dataset": "bids",
+    "endpoint": "getDataSetOpnStdBidPblancInfo",
+    "start": "2026-09-01",
+    "end": "2026-09-01",
+    "category": null,
+    "download_timestamp": "2026-09-01T23:59:59Z",
+    "row_count": 1,
+    "total_expected": 1,
+    "api_calls": 1,
+    "status": "complete",
+    "source_filename": "bids_all_20260901_20260901.jsonl.gz"
+  },
+  {
+    "dataset": "contracts",
+    "endpoint": "getDataSetOpnStdCntrctInfo",
+    "start": "2026-08-01",
+    "end": "2026-08-31",
+    "category": null,
+    "download_timestamp": "2026-08-31T23:59:59Z",
+    "row_count": 4,
+    "total_expected": 4,
+    "api_calls": 1,
+    "status": "complete",
+    "source_filename": "contracts_all_20260801_20260831.jsonl.gz"
+  },
+  {
+    "dataset": "contracts",
+    "endpoint": "getDataSetOpnStdCntrctInfo",
+    "start": "2026-09-01",
+    "end": "2026-09-01",
+    "category": null,
+    "download_timestamp": "2026-09-01T23:59:59Z",
+    "row_count": 1,
+    "total_expected": 1,
+    "api_calls": 1,
+    "status": "complete",
+    "source_filename": "contracts_all_20260901_20260901.jsonl.gz"
+  },
+  {
+    "dataset": "awards",
+    "endpoint": "getDataSetOpnStdScsbidInfo",
+    "start": "2026-08-01",
+    "end": "2026-08-31",
+    "category": "1",
+    "download_timestamp": "2026-08-31T23:59:59Z",
+    "row_count": 7,
+    "total_expected": 7,
+    "api_calls": 1,
+    "status": "complete",
+    "source_filename": "awards_goods_20260801_20260831.jsonl.gz"
+  },
+  {
+    "dataset": "awards",
+    "endpoint": "getDataSetOpnStdScsbidInfo",
+    "start": "2026-09-01",
+    "end": "2026-09-01",
+    "category": "1",
+    "download_timestamp": "2026-09-01T23:59:59Z",
+    "row_count": 1,
+    "total_expected": 1,
+    "api_calls": 1,
+    "status": "complete",
+    "source_filename": "awards_goods_20260901_20260901.jsonl.gz"
+  }
+]

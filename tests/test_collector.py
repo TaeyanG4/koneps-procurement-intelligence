@@ -378,3 +378,62 @@ def test_cli_dry_run_reporting(monkeypatch, tmp_path, caplog):
     assert not any("windows_saved=" in m for m in messages)
     assert not any("COMPLETED: total_rows=" in m for m in messages)
 
+
+def test_page_receipt_generation_and_storage(tmp_path):
+    """Verify that public-safe page receipt metadata is generated and recorded on each page fetch."""
+    from koneps_intel.collector import generate_page_receipt
+
+    items = [
+        {"bidNtceNo": "R26BK001", "bidprcAmt": "1000", "corpNm": "Company A"},
+        {"bidNtceNo": "R26BK002", "bidprcAmt": "2000", "corpNm": "Company B"},
+    ]
+    receipt = generate_page_receipt(
+        dataset="awards",
+        window_start="2026-08-01",
+        window_end="2026-08-31",
+        category="1",
+        page_no=1,
+        items=items,
+        reported_total_count=100,
+    )
+
+    assert receipt["dataset"] == "awards"
+    assert receipt["category"] == "1"
+    assert receipt["page_no"] == 1
+    assert receipt["page_row_count"] == 2
+    assert receipt["reported_total_count"] == 100
+    assert receipt["first_record_hash"] is not None
+    assert receipt["last_record_hash"] is not None
+    assert receipt["page_hash"] is not None
+    assert receipt["first_record_hash"] != receipt["last_record_hash"]
+
+    # Verify no raw sensitive strings in receipt
+    receipt_json = json.dumps(receipt)
+    assert "Company A" not in receipt_json
+    assert "Company B" not in receipt_json
+    assert "ServiceKey" not in receipt_json
+
+    # Test collector writes receipt
+    mock_client = MagicMock()
+    mock_client.calls = 0
+    mock_client.get_page.return_value = (items, 2)
+
+    out_dir = tmp_path / "raw"
+    collector = Collector(client=mock_client, out_dir=out_dir)
+    spec = FEEDS["bids"]
+    start = date(2026, 8, 1)
+    end = date(2026, 8, 31)
+
+    rows, calls, path = collector.collect_window(spec, start, end, page_size=10)
+    assert rows == 2
+
+    # Check that receipt file was created in receipts_dir
+    receipt_files = list(collector.receipts_dir.glob("*.jsonl"))
+    assert len(receipt_files) == 1
+    with open(receipt_files[0], "r", encoding="utf-8") as rf:
+        line = rf.readline()
+        logged_rcpt = json.loads(line)
+        assert logged_rcpt["page_no"] == 1
+        assert logged_rcpt["page_row_count"] == 2
+
+

@@ -62,7 +62,7 @@ erDiagram
         string bid_notice_round PK, FK
         string winner_supplier_id PK, FK
         double award_amount_krw PK
-        timestamp award_date PK
+        string bid_submission_time PK
         double award_rate
         double scheduled_price_krw
         double base_amount_krw
@@ -135,7 +135,7 @@ erDiagram
 ### 3.3 `award_outcomes` (Final Opening & Award Decisions)
 - **Concept**: The final adjudicated outcome indicating winning suppliers, prices, and rates.
 - **Intended Grain**: One award decision per lot/winner in a tender.
-- **Primary Key**: `(bid_notice_no, bid_notice_round, winner_supplier_id, award_amount_krw, award_date)`
+- **Primary Key**: `(bid_notice_no, bid_notice_round, winner_supplier_id, award_amount_krw, bid_submission_time)`
 - **Foreign Keys**:
   - `(bid_notice_no, bid_notice_round)` $\rightarrow$ `tenders`
   - `winner_supplier_id` $\rightarrow$ `suppliers.supplier_id`
@@ -179,8 +179,8 @@ erDiagram
 
 ### 3.6 `suppliers` (Supplier Dimension Table)
 - **Concept**: Unified dimension of all enterprises and sole proprietors participating in procurement.
-- **Primary Key**: `supplier_id` (SHA-256 pseudonymized hash of normalized 10-digit registration number)
-- **Privacy Policy**: Raw business registration numbers are never published; public releases include a stable pseudo-ID (`supplier_id`) and masked string (`123-45-*****`).
+- **Primary Key**: `supplier_id` (**HMAC-SHA256** pseudonymized hash of normalized 10-digit registration number)
+- **Privacy Policy**: Raw business registration numbers are never published; public releases include a stable HMAC pseudo-ID (`supplier_id`) and masked string (`123-45-*****`). The HMAC key is signed with a private server secret, providing resistance against plain-hash reversal attacks.
 - **Empirical Volume (August 2026)**:
   - Distinct Bidders: 123,777
   - Distinct Winners: 13,376

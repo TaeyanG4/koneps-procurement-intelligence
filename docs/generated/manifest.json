@@ -1,0 +1,62 @@
+{
+  "ARCHITECTURE.ko.docx": {
+    "source": "docs/ARCHITECTURE.md",
+    "source_sha256": "f61498dac3473d054d059bd81c3df55fd5d40bd448daa92cdd6afd50a994e838",
+    "docx_size_bytes": 39728
+  },
+  "ARCHITECTURE.en.docx": {
+    "source": "docs/ARCHITECTURE.en.md",
+    "source_sha256": "f382c436a28c79203a0ad98f7d1203dde989f8cb3e3412758196195b47a45b5b",
+    "docx_size_bytes": 39240
+  },
+  "DATA_SOURCES.ko.docx": {
+    "source": "docs/DATA_SOURCES.md",
+    "source_sha256": "40f8317a5319080095cea24a4a88392882fe0e4d7ebe407e20cea787a0acbbb3",
+    "docx_size_bytes": 39275
+  },
+  "DATA_SOURCES.en.docx": {
+    "source": "docs/DATA_SOURCES.en.md",
+    "source_sha256": "984b64a26e398f4e383f75367493f8e6ea9b273d3a2b61c8372cc1dbe9962de3",
+    "docx_size_bytes": 38931
+  },
+  "DATA_DICTIONARY.ko.docx": {
+    "source": "docs/DATA_DICTIONARY.md",
+    "source_sha256": "fa5685540d3d24cdfcb240a67b31ddbf16e29e1d14e0ac7aec1a43d5862bb29a",
+    "docx_size_bytes": 40510
+  },
+  "DATA_DICTIONARY.en.docx": {
+    "source": "docs/DATA_DICTIONARY.en.md",
+    "source_sha256": "957a585d52195858f55d6ddd0e1b9b9740ae9ab850d27cd7754863b66e138ca1",
+    "docx_size_bytes": 40278
+  },
+  "LIVE_VALIDATION.ko.docx": {
+    "source": "docs/LIVE_VALIDATION.md",
+    "source_sha256": "4848486a7a2f01c362a291951296b2fac69b63ebfdb6cdde46bc67d17c40cbde",
+    "docx_size_bytes": 41035
+  },
+  "LIVE_VALIDATION.en.docx": {
+    "source": "docs/LIVE_VALIDATION.en.md",
+    "source_sha256": "2b0d0431cc5e1bf53e13236c5eff61ba73097ec2e5fd177dc5e381f22efb6628",
+    "docx_size_bytes": 38795
+  },
+  "PILOT_2026_08.ko.docx": {
+    "source": "docs/PILOT_2026_08.md",
+    "source_sha256": "c24e54390996ca28cea8434f100cc3ba1274119b359829216cdfe0300d537093",
+    "docx_size_bytes": 42209
+  },
+  "PILOT_2026_08.en.docx": {
+    "source": "docs/PILOT_2026_08.en.md",
+    "source_sha256": "18747723dbd2dd072ba2d1ca7fc4877c2358138d0a20d92682f3c4cb08a77958",
+    "docx_size_bytes": 40886
+  },
+  "RELATIONAL_MODEL.ko.docx": {
+    "source": "docs/RELATIONAL_MODEL.md",
+    "source_sha256": "55006151be69a7f7a557ce26329f81d4daff7f1957bcee1c27771462ce9a2189",
+    "docx_size_bytes": 41237
+  },
+  "RELATIONAL_MODEL.en.docx": {
+    "source": "docs/RELATIONAL_MODEL.en.md",
+    "source_sha256": "12a68fd35e1bc284f6abd054f51116249b651fe6edd680d2cc9ae41967ef39db",
+    "docx_size_bytes": 40597
+  }
+}

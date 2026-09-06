@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import gzip
+import hashlib
 import json
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
@@ -9,10 +10,51 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from koneps_intel.api import KonepsClient, QuotaExceededError
+from koneps_intel.config import LOGS_DIR
 from koneps_intel.endpoints import BUSINESS_DIVISIONS, FEEDS, FeedSpec
 from koneps_intel.parsers import feed_windows, format_boundary
 from koneps_intel.storage import ManifestManager, ManifestRecord, RawStorage
 from koneps_intel.utils import get_logger
+
+
+def generate_page_receipt(
+    dataset: str,
+    window_start: str,
+    window_end: str,
+    category: Optional[str],
+    page_no: int,
+    items: List[Dict[str, Any]],
+    reported_total_count: int,
+    request_timestamp: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Generate public-safe receipt metadata for an API page without PII or credentials.
+
+    Captures structural hashes and pagination metadata for future verifiable observability.
+    """
+    first_hash = None
+    last_hash = None
+    page_hash = None
+    if items:
+        first_str = json.dumps(items[0], sort_keys=True, ensure_ascii=False)
+        last_str = json.dumps(items[-1], sort_keys=True, ensure_ascii=False)
+        first_hash = hashlib.sha256(first_str.encode("utf-8")).hexdigest()
+        last_hash = hashlib.sha256(last_str.encode("utf-8")).hexdigest()
+        page_content = "".join(json.dumps(it, sort_keys=True, ensure_ascii=False) for it in items)
+        page_hash = hashlib.sha256(page_content.encode("utf-8")).hexdigest()
+
+    return {
+        "dataset": dataset,
+        "window_start": window_start,
+        "window_end": window_end,
+        "category": category,
+        "page_no": page_no,
+        "page_row_count": len(items),
+        "reported_total_count": reported_total_count,
+        "first_record_hash": first_hash,
+        "last_record_hash": last_hash,
+        "page_hash": page_hash,
+        "request_timestamp": request_timestamp or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
 
 
 @dataclass
@@ -39,6 +81,18 @@ class Collector:
         self.out_dir = out_dir
         self.manifest = manifest_manager or ManifestManager(out_dir / "manifest.json")
         self.logger = logger or get_logger("koneps_intel.collector")
+        self.receipts_dir = (self.out_dir.parent / "logs" / "page_receipts") if self.out_dir else (LOGS_DIR / "page_receipts")
+
+    def _record_receipt(self, receipt: Dict[str, Any]) -> None:
+        """Write public-safe page receipt to append-only JSONL log."""
+        try:
+            self.receipts_dir.mkdir(parents=True, exist_ok=True)
+            cat_str = receipt.get("category") or "all"
+            fpath = self.receipts_dir / f"{receipt['dataset']}_{cat_str}_{receipt['window_start']}_{receipt['window_end']}.jsonl"
+            with open(fpath, "a", encoding="utf-8") as f:
+                f.write(json.dumps(receipt, ensure_ascii=False) + "\n")
+        except Exception as exc:
+            self.logger.debug("Could not record page receipt: %s", exc)
 
     def collect_window(
         self,
@@ -147,6 +201,18 @@ class Collector:
                     items, total = self.client.get_page(spec.operation, params)
                     if total_expected is None:
                         total_expected = total
+
+                    # Capture future page-level observability receipt (public-safe)
+                    receipt = generate_page_receipt(
+                        dataset=spec.name,
+                        window_start=start.isoformat(),
+                        window_end=end.isoformat(),
+                        category=business_code,
+                        page_no=page,
+                        items=items,
+                        reported_total_count=total,
+                    )
+                    self._record_receipt(receipt)
 
                     for item in items:
                         f.write(json.dumps(item, ensure_ascii=False, default=str) + "\n")

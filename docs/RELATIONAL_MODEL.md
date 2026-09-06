@@ -62,7 +62,7 @@ erDiagram
         string bid_notice_round PK, FK
         string winner_supplier_id PK, FK
         double award_amount_krw PK
-        timestamp award_date PK
+        string bid_submission_time PK
         double award_rate
         double scheduled_price_krw
         double base_amount_krw
@@ -135,7 +135,7 @@ erDiagram
 ### 3.3 `award_outcomes` (최종 개찰/낙찰 결과)
 - **개념**: 적격심사 및 최종 낙찰 결정이 완료된 낙찰 결과.
 - **의도된 그레인 (Intended Grain)**: 특정 공고·차수 내 낙찰 건 (분할 발주 시 물품군별 1행).
-- **기본 키 (Primary Key)**: `(bid_notice_no, bid_notice_round, winner_supplier_id, award_amount_krw, award_date)`
+- **기본 키 (Primary Key)**: `(bid_notice_no, bid_notice_round, winner_supplier_id, award_amount_krw, bid_submission_time)`
 - **외래 키 (Foreign Keys)**:
   - `(bid_notice_no, bid_notice_round)` $\rightarrow$ `tenders`
   - `winner_supplier_id` $\rightarrow$ `suppliers.supplier_id`
@@ -179,8 +179,8 @@ erDiagram
 
 ### 3.6 `suppliers` (공급업체 차원 테이블)
 - **개념**: 조달시장에 참여하는 기업/개인사업자 마스터.
-- **기본 키 (Primary Key)**: `supplier_id` (10자리 정규화 사업자등록번호 기반 SHA-256 해시 ID)
-- **식별자 가명화 정책**: 공개 Kaggle 데이터셋 배포 시 사업자등록번호 원문은 비공개하며, 안전한 단방향 해시 키(`supplier_id`)와 마스킹된 번호(`123-45-*****`)를 제공합니다.
+- **기본 키 (Primary Key)**: `supplier_id` (10자리 정규화 사업자등록번호 기반 **HMAC-SHA256** 해시 ID)
+- **식별자 가명화 정책**: 공개 Kaggle 데이터셋 배포 시 사업자등록번호 원문은 비공개하며, 안전한 단방향 HMAC 키(`supplier_id`)와 마스킹된 번호(`123-45-*****`)를 제공합니다. HMAC 키는 비공개 서버 키(`DATA_GO_KR_SERVICE_KEY`)로 서명되어 평문 해시 역산 공격에 내성이 있습니다.
 - **실측 규모 (2026년 8월)**:
   - 투찰 기업: 123,777개사
   - 낙찰 기업: 13,376개사
