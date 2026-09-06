@@ -66,7 +66,12 @@ class KonepsClient:
         session: Optional[requests.Session] = None,
         logger: Optional[logging.Logger] = None,
     ):
-        self.service_key = service_key.strip()
+        import urllib.parse
+        cleaned_key = service_key.strip()
+        if "%" in cleaned_key:
+            cleaned_key = urllib.parse.unquote(cleaned_key)
+        self.service_key = cleaned_key
+
         self.timeout = timeout
         self.max_retries = max_retries
         self.pause = pause
@@ -80,10 +85,11 @@ class KonepsClient:
         """Fetch a single page of records with retry and structured error handling."""
         url = f"{BASE_URL}/{operation}"
         request_params = {
-            "serviceKey": self.service_key,
+            "ServiceKey": self.service_key,
             "type": "json",
             **params,
         }
+
         last_error: Optional[Exception] = None
 
         for attempt in range(self.max_retries):

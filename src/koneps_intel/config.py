@@ -28,6 +28,9 @@ def mask_key(key: str | None) -> str:
     return f"{key[:4]}********{key[-4:]}"
 
 
+import urllib.parse
+
+
 def get_service_key(required: bool = True) -> str:
     """Retrieve and validate the public data portal API key from environment."""
     load_dotenv()
@@ -39,4 +42,9 @@ def get_service_key(required: bool = True) -> str:
                 "Copy .env.example to .env and set your data.go.kr decoding service key."
             )
         return ""
+    # Normalize percent-encoded keys (e.g. from 'Encoding' portal key) so requests
+    # does not double-encode special characters (%2B, %2F, %3D) when sending params.
+    if "%" in key:
+        key = urllib.parse.unquote(key)
     return key
+

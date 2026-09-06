@@ -46,11 +46,18 @@ DATETIME_COLUMNS = [
     "contract_date",
     "bid_submission_date",
     "opening_date",
+    "award_date",
     "bidNtceDt",
+    "bidNtceDate",
     "bidNtceBgnDate",
     "bidNtceEndDate",
+    "bidBeginDate",
+    "bidClseDate",
     "opengDate",
     "cntrctDate",
+    "cntrctCnclsDate",
+    "bidprcDate",
+    "fnlSucsfDate",
 ]
 
 
@@ -101,8 +108,10 @@ def normalize_feed_frame(df: pd.DataFrame, feed: str) -> pd.DataFrame:
         "base_amount_krw", "scheduled_price_krw", "opening_rank", "bid_amount_krw",
         "bid_rate", "award_amount_krw", "award_rate", "award_lower_limit_rate",
         "contract_amount_krw", "total_contract_amount_krw", "current_contract_amount_krw",
-        "asignBdgtAmt", "presmPtce", "bsisAmt", "sucsfbidAmt", "sucsfbidRate",
-        "cntrctAmt", "totCntrctAmt",
+        "asignBdgtAmt", "presmPtce", "presmptPrce", "bsisAmt", "bssAmt", "rsrvtnPrce",
+        "sucsfbidAmt", "sucsfbidRate", "sucsfbidLwltRate", "sucsfLwstlmtRt",
+        "fnlSucsfAmt", "fnlSucsfRt", "bidprcAmt", "bidprcRt", "cntrctAmt", "totCntrctAmt",
+        "ttalCntrctAmt",
     ]
     for col in df.columns:
         if col in numeric_cols or col.endswith("_krw") or col.endswith("_rate"):
@@ -116,7 +125,10 @@ def normalize_feed_frame(df: pd.DataFrame, feed: str) -> pd.DataFrame:
     str_cols = [
         "bidNtceNo", "bid_notice_no", "bizno", "winner_business_registration_no",
         "contractor_business_registration_no", "bidder_business_registration_no",
+        "bidprcCorpBizrno", "fnlSucsfCorpBizrno", "rprsntCorpBizrno",
         "ntceInsttCd", "notice_agency_code", "dminsttCd", "demand_agency_code",
+        "dmndInsttCd", "cntrctInsttCd", "contract_agency_code",
+        "untyCntrctNo", "unified_contract_no", "cntrctNo", "contract_no",
     ]
     for col in str_cols:
         if col in df.columns:
@@ -143,9 +155,9 @@ def build_feed_parquet(
     parts_written = 0
 
     primary_date_cols = {
-        "bids": ["bid_notice_date", "bidNtceDt", "bid_notice_begin_datetime", "bidNtceBgnDate"],
-        "awards": ["opening_datetime", "opengDate", "bid_notice_date", "bidNtceDt"],
-        "contracts": ["contract_date", "cntrctDate"],
+        "bids": ["bid_notice_date", "bidNtceDt", "bidNtceDate", "bid_notice_begin_datetime", "bidNtceBgnDate"],
+        "awards": ["opening_datetime", "opengDate", "bid_notice_date", "bidNtceDt", "bidNtceDate"],
+        "contracts": ["contract_date", "cntrctCnclsDate", "cntrctDate"],
     }
 
     for path in files:

@@ -33,8 +33,8 @@ This document tracks the implementation progress and development milestones for 
 ---
 
 ### Data Collection & Empirical Validation (Operational Milestones)
-- [ ] Live API authentication verified with valid `DATA_GO_KR_SERVICE_KEY`
-- [ ] 1-day live collection smoke test verified (`bids`, `awards`, `contracts`)
+- [x] Live API authentication verified with valid `DATA_GO_KR_SERVICE_KEY`
+- [x] 1-day live collection smoke test verified (`bids`, `awards`, `contracts`)
 - [ ] 1-month benchmark dataset collected
 - [ ] 1-year historical MVP collected
 - [ ] Official bidder outcome report export ingested into `data/processed/bidder_outcomes/`

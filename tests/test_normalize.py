@@ -232,3 +232,47 @@ def test_ingest_bidder_report_real_xls(tmp_path):
     df_pq = pd.read_parquet(out_parquet)
     assert pd.api.types.is_datetime64_any_dtype(df_pq["opening_date"])
     assert df_pq["opening_date"].iloc[0] == pd.Timestamp("2026-09-01")
+
+
+def test_awards_preserves_all_bidders_under_deduplication():
+    """Verify that awards deduplication does not collapse multiple bidders on the same tender."""
+    from koneps_intel.normalize import dedupe_frame
+
+    # 1 tender with 3 distinct bidders
+    rows = [
+        {"bidNtceNo": "R26001", "bidNtceOrd": "000", "bidprcCorpBizrno": "111", "opengRank": 1, "bidprcAmt": "100"},
+        {"bidNtceNo": "R26001", "bidNtceOrd": "000", "bidprcCorpBizrno": "222", "opengRank": 2, "bidprcAmt": "105"},
+        {"bidNtceNo": "R26001", "bidNtceOrd": "000", "bidprcCorpBizrno": "333", "opengRank": 3, "bidprcAmt": "110"},
+        # Duplicate of bidder 1 (e.g. from overlapping re-fetch)
+        {"bidNtceNo": "R26001", "bidNtceOrd": "000", "bidprcCorpBizrno": "111", "opengRank": 1, "bidprcAmt": "100"},
+    ]
+    df = pd.DataFrame(rows)
+    deduped, keys = dedupe_frame(df, "awards")
+
+    # Should retain all 3 unique bidders, removing only the 4th duplicate row
+    assert len(deduped) == 3
+    assert set(deduped["bidprcCorpBizrno"]) == {"111", "222", "333"}
+
+
+def test_contracts_normalization_aliases():
+    """Verify contracts aliases map untyCntrctNo, ttalCntrctAmt, and rprsntCorpBizrno."""
+    df = pd.DataFrame([{
+        "untyCntrctNo": "11260000001",
+        "cntrctNo": "20260901001",
+        "cntrctOrd": "00",
+        "cntrctNm": "클라우드 서비스 이용계약",
+        "cntrctAmt": "50,000,000",
+        "ttalCntrctAmt": "150,000,000",
+        "rprsntCorpBizrno": "1234567890",
+        "rprsntCorpNm": "테스트엔터프라이즈",
+        "cntrctCnclsDate": "2026-09-01",
+    }])
+    norm = normalize_feed_frame(df, "contracts")
+
+    assert norm["unified_contract_no"].iloc[0] == "11260000001"
+    assert norm["contract_amount_krw"].iloc[0] == 50000000.0
+    assert norm["total_contract_amount_krw"].iloc[0] == 150000000.0
+    assert norm["contractor_business_registration_no"].iloc[0] == "1234567890"
+    assert norm["contractor_name_ko"].iloc[0] == "테스트엔터프라이즈"
+    assert norm["contract_date"].iloc[0] == pd.Timestamp("2026-09-01")
+

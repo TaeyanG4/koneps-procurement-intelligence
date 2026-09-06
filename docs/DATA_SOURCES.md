@@ -11,7 +11,7 @@ The primary automated ingestion stream relies on the official Open Data Standard
 - **Service Name**: 조달청_나라장터 공공데이터개방표준서비스 (KONEPS Public Data Open Standard Service)
 - **Base Endpoint**: `https://apis.data.go.kr/1230000/ao/PubDataOpnStdService`
 - **Protocol**: HTTPS GET (JSON and XML response payloads)
-- **Authentication**: `serviceKey` (Standard decoding key issued per account)
+- **Authentication**: `ServiceKey` (Standard decoding key issued per account)
 - **Traffic Limits**:
   - Development account quota: 10,000 requests / day (auto-approved upon request)
   - Production account quota: Custom scale-up available upon application
@@ -21,8 +21,9 @@ The primary automated ingestion stream relies on the official Open Data Standard
 | Dataset | Operation Name | Temporal Parameter | Date Format | Pacing / Window Strategy |
 | :--- | :--- | :--- | :--- | :--- |
 | **Tender Notices (`bids`)** | `getDataSetOpnStdBidPblancInfo` | `bidNtceBgnDt` ~ `bidNtceEndDt` | `YYYYMMDDHHMM` | Monthly calendar slices (`month_windows`) |
-| **Successful Bids (`awards`)** | `getDataSetOpnStdScsbidInfo` | `opengBgnDt` ~ `opengEndDt` | `YYYYMMDDHHMM` | 7-day windows, partitioned by business division (`bsnsDivCd` 1, 2, 3, 5) |
+| **Successful Bids (`awards`)** | `getDataSetOpnStdScsbidInfo` | `opengBgnDt` ~ `opengEndDt` | `YYYYMMDDHHMM` | 1-day windows (per API v1.2), partitioned by business division (`bsnsDivCd` 1, 2, 3, 5) |
 | **Contracts (`contracts`)** | `getDataSetOpnStdCntrctInfo` | `cntrctCnclsBgnDate` ~ `cntrctCnclsEndDate` | `YYYYMMDD` | 7-day windows |
+
 
 ### Business Divisions (`bsnsDivCd`)
 For endpoints requiring business division segmentation (notably awards):

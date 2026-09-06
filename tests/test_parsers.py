@@ -66,6 +66,18 @@ def test_feed_windows_bids():
     assert windows[1] == (date(2026, 9, 1), date(2026, 9, 10))
 
 
+def test_feed_windows_awards_one_day_splitting():
+    spec = FEEDS["awards"]
+    assert spec.window_days == 1
+    windows = list(feed_windows(spec, date(2026, 9, 1), date(2026, 9, 3)))
+    assert windows == [
+        (date(2026, 9, 1), date(2026, 9, 1)),
+        (date(2026, 9, 2), date(2026, 9, 2)),
+        (date(2026, 9, 3), date(2026, 9, 3)),
+    ]
+
+
+
 def test_parse_xml_error():
     xml = """<?xml version="1.0" encoding="UTF-8"?>
     <OpenAPI_ServiceResponse>

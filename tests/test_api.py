@@ -38,6 +38,39 @@ def test_redact_sensitive():
     assert "SECRET_KEY_123" not in clean
     assert "serviceKey=[REDACTED]" in clean
 
+    url2 = "https://apis.data.go.kr/1230000/PubDataOpnStdService/getData?ServiceKey=SECRET_KEY_123&type=json"
+    clean2 = redact_sensitive(url2)
+    assert "SECRET_KEY_123" not in clean2
+    assert "ServiceKey=[REDACTED]" in clean2
+
+
+def test_client_uses_official_service_key_param(mock_session):
+    """Verify that outgoing request uses official 'ServiceKey' parameter casing."""
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "response": {
+            "header": {"resultCode": "00", "resultMsg": "OK"},
+            "body": {"items": [], "totalCount": 0},
+        }
+    }
+    mock_session.get.return_value = mock_resp
+
+    client = KonepsClient(service_key="mock_test_key_abc", pause=0.0, session=mock_session)
+    client.get_page("testOp", {"pageNo": 1})
+
+    called_kwargs = mock_session.get.call_args[1]
+    params = called_kwargs["params"]
+    assert "ServiceKey" in params, "Request must use official 'ServiceKey' parameter"
+    assert "serviceKey" not in params, "Request must not use lowercase 'serviceKey'"
+    assert params["ServiceKey"] == "mock_test_key_abc"
+    assert params["type"] == "json"
+
+
+def test_client_unquotes_percent_encoded_key(mock_session):
+    client = KonepsClient(service_key="key_with_percent%2Bplus%3D%3D", pause=0.0, session=mock_session)
+    assert client.service_key == "key_with_percent+plus=="
+
 
 def test_client_normal_response(mock_session):
     with open(FIXTURES_DIR / "sample_bids_response.json", "r", encoding="utf-8") as f:

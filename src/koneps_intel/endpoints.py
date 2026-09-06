@@ -50,9 +50,10 @@ FEEDS: Dict[str, FeedSpec] = {
         start_param="opengBgnDt",
         end_param="opengEndDt",
         date_format="%Y%m%d%H%M",
-        window_days=7,
+        window_days=1,
         needs_business_division=True,
     ),
+
     "contracts": FeedSpec(
         name="contracts",
         operation="getDataSetOpnStdCntrctInfo",
