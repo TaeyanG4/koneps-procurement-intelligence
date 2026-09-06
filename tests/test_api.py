@@ -8,9 +8,10 @@ import requests
 
 from koneps_intel.api import (
     AuthenticationError,
-    KonepsClient,
-    QuotaExceededError,
     KonepsApiError,
+    KonepsClient,
+    PermanentApiError,
+    QuotaExceededError,
 )
 from koneps_intel.config import mask_key
 from koneps_intel.utils import redact_sensitive
@@ -121,3 +122,57 @@ def test_client_retry_server_error(mock_session):
     assert len(items) == 1
     assert total == 1
     assert client.calls == 2
+
+
+def test_client_client_error_no_retry(mock_session):
+    err_resp = MagicMock()
+    err_resp.status_code = 404
+    mock_session.get.side_effect = requests.HTTPError("404 Not Found", response=err_resp)
+
+    client = KonepsClient(service_key="test_key_123456", max_retries=3, pause=0.0, session=mock_session)
+    with pytest.raises(PermanentApiError):
+        client.get_page("test_op", {})
+
+    assert client.calls == 1
+    assert mock_session.get.call_count == 1
+
+
+def test_client_json_schema_error_no_xml_fallback(mock_session):
+    # Valid JSON, but missing standard response envelope
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"error_code": "INVALID_PARAMS"}
+    mock_resp.text = '{"error_code": "INVALID_PARAMS"}'
+    mock_session.get.return_value = mock_resp
+
+    client = KonepsClient(service_key="test_key_123456", max_retries=1, pause=0.0, session=mock_session)
+    with pytest.raises(PermanentApiError) as exc_info:
+        client.get_page("test_op", {})
+
+    assert "Unexpected JSON schema" in str(exc_info.value)
+    assert client.calls == 1
+
+
+def test_client_application_error_code_no_retry(mock_session):
+    # Application error code (e.g. 02: Invalid Request Parameter)
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "response": {
+            "header": {"resultCode": "02", "resultMsg": "INVALID_REQUEST_PARAMETER_ERROR"}
+        }
+    }
+    mock_session.get.return_value = mock_resp
+
+    client = KonepsClient(service_key="test_key_123456", max_retries=3, pause=0.0, session=mock_session)
+    with pytest.raises(PermanentApiError) as exc_info:
+        client.get_page("test_op", {})
+
+    assert "INVALID_REQUEST_PARAMETER_ERROR" in str(exc_info.value)
+    assert client.calls == 1
+
+
+def test_client_user_agent_header():
+    client = KonepsClient(service_key="test_key_123456")
+    assert "User-Agent" in client.session.headers
+    assert client.session.headers["User-Agent"].startswith("koneps-procurement-intelligence/")

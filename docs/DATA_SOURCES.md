@@ -6,9 +6,9 @@ This document describes the primary data sources, service endpoints, operational
 
 ## 1. Korean Public Data Portal (data.go.kr) APIs
 
-The primary automated ingestion stream relies on the official Open Data Standard APIs provided by South Korea's Public Procurement Service (??? ???? / KONEPS) via the Public Data Portal (`data.go.kr`).
+The primary automated ingestion stream relies on the official Open Data Standard APIs provided by South Korea's Public Procurement Service (조달청 나라장터 / KONEPS) via the Public Data Portal (`data.go.kr`).
 
-- **Service Name**: ???_???? ???????????? (KONEPS Public Data Open Standard Service)
+- **Service Name**: 조달청_나라장터 공공데이터개방표준서비스 (KONEPS Public Data Open Standard Service)
 - **Base Endpoint**: `https://apis.data.go.kr/1230000/ao/PubDataOpnStdService`
 - **Protocol**: HTTPS GET (JSON and XML response payloads)
 - **Authentication**: `serviceKey` (Standard decoding key issued per account)
@@ -26,10 +26,10 @@ The primary automated ingestion stream relies on the official Open Data Standard
 
 ### Business Divisions (`bsnsDivCd`)
 For endpoints requiring business division segmentation (notably awards):
-- `1`: Goods (??)
-- `2`: Foreign Supplies (??)
-- `3`: Construction / Civil Works (??)
-- `5`: Services / Consulting (??)
+- `1`: Goods (물품)
+- `2`: Foreign Supplies (외자)
+- `3`: Construction / Civil Works (공사)
+- `5`: Services / Consulting (용역)
 
 ---
 
@@ -37,8 +37,8 @@ For endpoints requiring business division segmentation (notably awards):
 
 In addition to standard API feeds, detailed bidder-level competition records are extracted from official KONEPS exports:
 
-- **Source Portal**: KONEPS Open Procurement Data Portal (????? ???? / ????)
-- **Report Name**: ???? ??? ?? ? ???? (Tender Notice Bidder-Level Bidding & Contract History)
+- **Source Portal**: KONEPS Open Procurement Data Portal (공공데이터 개방포털 / 나라장터)
+- **Report Name**: 입찰공고 기업별 투찰 및 계약내역 (Tender Notice Bidder-Level Bidding & Contract History)
 - **Ingestion Script**: `scripts/ingest_bidder_report.py`
 - **Supported File Formats**: CSV (`.csv`), Excel (`.xlsx`, `.xls`)
 - **Key Dimensions Provided**:
@@ -54,11 +54,11 @@ In addition to standard API feeds, detailed bidder-level competition records are
 ## 3. Data Governance & Licensing
 
 ### Source Data Licensing
-- Public data distributed through `data.go.kr` and KONEPS is published under South Korea's **Act on Promotion of the Provision and Use of Public Data (?????? ?? ? ?? ???? ?? ??)** and standard **Korea Open Government License (KOGL / ???? ?1??)**.
-- Users are permitted to access, copy, modify, and utilize the data for analytical and research applications.
-- **Code vs. Data Separation**: The source code in this repository is maintained separately from the collected datasets. Historical data is not committed to Git and will be released independently via Kaggle Datasets.
+- Public data distributed through `data.go.kr` and KONEPS is published under South Korea's **Act on Promotion of the Provision and Use of Public Data (공공데이터의 제공 및 이용 활성화에 관한 법률)** and the **Korea Open Government License (KOGL / 공공누리)**.
+- Specific datasets on data.go.kr are subject to their individual terms of provision indicated on each service page. Users must verify the specific reuse conditions per endpoint on data.go.kr prior to commercial redistribution.
+- **Code vs. Data Separation**: The source code in this repository is maintained separately from the collected datasets. Historical data is not committed to Git and will be distributed independently via Kaggle Datasets under applicable terms.
 
 ### Privacy and Responsible Publication Checkpoints
-1. **Business Registration Numbers**: Korean business registration numbers (`???????`) identify corporate and commercial entities. Before public release on Kaggle, the data engineering pipeline verifies whether raw numbers should be preserved or pseudonymized into stable hashed identifiers (`supplier_id_hash`).
+1. **Business Registration Numbers**: Korean business registration numbers (`사업자등록번호`) identify corporate and commercial entities. Before public release on Kaggle, the data engineering pipeline verifies whether raw numbers should be preserved or pseudonymized into stable hashed identifiers (`supplier_id_hash`).
 2. **Personal Data Protection**: Public procurement tenders occasionally involve sole proprietors or individuals. Any personal identifying numbers (e.g. resident registration numbers) are strictly excluded by source APIs.
 3. **No Credential Exposure**: Never commit API keys, service tokens, or `.env` files into source control.

@@ -54,11 +54,53 @@ class Collector:
         end_str = end.strftime("%Y%m%d")
         path = RawStorage.get_window_path(self.out_dir, spec.name, label, start_str, end_str)
 
-        # Check resumability
+        # Check resumability & file validity (Cases A, B, C, D, E)
         is_done = self.manifest.is_completed(spec.name, start.isoformat(), end.isoformat(), business_code)
-        if not force and (path.exists() or is_done):
-            self.logger.info("SKIP %s [%s to %s] %s (already collected)", spec.name, start, end, label)
-            return 0, 0, path
+
+        if not force:
+            if path.exists():
+                is_valid, reason, meta, rows = RawStorage.validate_window(
+                    path,
+                    expected_feed=spec.name,
+                    expected_start=start.isoformat(),
+                    expected_end=end.isoformat(),
+                )
+                if is_valid:
+                    if is_done:
+                        # Case A: Manifest complete + valid raw file -> safe skip
+                        self.logger.info("SKIP %s [%s to %s] %s (already collected and verified)", spec.name, start, end, label)
+                        return 0, 0, path
+                    else:
+                        # Case C: Valid raw file exists, but manifest missing -> reconstruct manifest entry
+                        self.logger.info("RECONSTRUCT %s [%s to %s] %s manifest from valid raw file", spec.name, start, end, label)
+                        finish_utc = (meta or {}).get("collected_at_utc") or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                        total_exp = (meta or {}).get("total_expected")
+                        api_calls = (meta or {}).get("api_calls", 0)
+                        record = ManifestRecord(
+                            dataset=spec.name,
+                            endpoint=spec.operation,
+                            start=start.isoformat(),
+                            end=end.isoformat(),
+                            category=business_code,
+                            download_timestamp=finish_utc,
+                            row_count=rows,
+                            total_expected=total_exp,
+                            api_calls=api_calls,
+                            status="complete",
+                            source_filename=path.name,
+                        )
+                        self.manifest.record(record)
+                        return 0, 0, path
+                else:
+                    # Case D: Raw file exists but is corrupt -> remove and re-download
+                    self.logger.warning("CORRUPT %s [%s to %s] %s (%s). Removing corrupt file and re-downloading.", spec.name, start, end, label, reason)
+                    path.unlink(missing_ok=True)
+                    self.manifest.remove_record(spec.name, start.isoformat(), end.isoformat(), business_code)
+            else:
+                if is_done:
+                    # Case B: Manifest recorded complete, but raw file missing -> remove invalid manifest record and re-download
+                    self.logger.warning("MISSING %s [%s to %s] %s raw file missing despite complete manifest record. Re-downloading.", spec.name, start, end, label)
+                    self.manifest.remove_record(spec.name, start.isoformat(), end.isoformat(), business_code)
 
         if dry_run:
             self.logger.info("DRY-RUN %s [%s to %s] %s -> %s", spec.name, start, end, label, path.name)
@@ -202,10 +244,13 @@ class Collector:
                         else:
                             stats.completed_windows += 1
                     except QuotaExceededError:
-                        self.logger.warning(
-                            "Collection paused due to quota limit. Re-run with the same arguments tomorrow to resume."
+                        self.logger.error(
+                            "Collection paused due to quota limit during %s [%s..%s]. Re-run tomorrow to resume.",
+                            name,
+                            win_start,
+                            win_end,
                         )
-                        return stats
+                        raise
 
         self.logger.info(
             "DONE collection: total_rows=%d, total_api_calls=%d, completed_windows=%d, skipped_windows=%d",

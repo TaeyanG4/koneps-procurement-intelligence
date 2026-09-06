@@ -1,6 +1,7 @@
 """Robust API client for KONEPS standard open data service."""
 from __future__ import annotations
 
+import json
 import logging
 import random
 import time
@@ -31,6 +32,17 @@ class QuotaExceededError(KonepsApiError):
     """Raised when daily API request limits are exceeded."""
 
 
+class PermanentApiError(KonepsApiError):
+    """Raised when the request or API error is non-retryable (client error, invalid params)."""
+
+
+class TransientApiError(KonepsApiError):
+    """Raised for retryable server-side failures (429, 500, 502, 503, 504)."""
+
+
+TRANSIENT_STATUS_CODES = {429, 500, 502, 503, 504}
+
+
 class KonepsClient:
     """Production-grade HTTP client for data.go.kr KONEPS APIs."""
 
@@ -48,8 +60,8 @@ class KonepsClient:
         self.max_retries = max_retries
         self.pause = pause
         self.session = session or requests.Session()
-        if hasattr(self.session, "headers") and isinstance(self.session.headers, dict):
-            self.session.headers.update({"User-Agent": "koneps-intel/0.1.0"})
+        if hasattr(self.session, "headers") and hasattr(self.session.headers, "update"):
+            self.session.headers.update({"User-Agent": "koneps-procurement-intelligence/0.1.1"})
         self.logger = logger or get_logger("koneps_intel.api")
         self.calls = 0
 
@@ -68,18 +80,34 @@ class KonepsClient:
                 self.calls += 1
                 resp = self.session.get(url, params=request_params, timeout=self.timeout)
 
-                # Transient HTTP server errors
-                if resp.status_code in {429, 500, 502, 503, 504}:
-                    raise requests.HTTPError(f"HTTP {resp.status_code}", response=resp)
+                # Transient HTTP server errors (retryable)
+                if resp.status_code in TRANSIENT_STATUS_CODES:
+                    raise TransientApiError(f"Transient HTTP {resp.status_code}", response=resp)
+
+                # Permanent HTTP client errors (non-retryable, e.g. 400, 401, 403, 404)
+                if 400 <= resp.status_code < 500:
+                    raise PermanentApiError(f"Permanent HTTP {resp.status_code}: {resp.text[:200]}")
 
                 resp.raise_for_status()
 
-                # Parse JSON or fallback to XML
+                # Separate JSON decoding from schema validation
+                is_json = False
+                payload = None
                 try:
                     payload = resp.json()
-                    items, total, code, msg = extract_response(payload)
-                except Exception:
-                    # Often data.go.kr returns an XML error body even when type=json was requested
+                    is_json = True
+                except (ValueError, json.JSONDecodeError):
+                    is_json = False
+
+                if is_json:
+                    # Valid JSON parsed - extract response directly.
+                    # Schema errors must NOT fallback to XML parser.
+                    try:
+                        items, total, code, msg = extract_response(payload)
+                    except Exception as schema_err:
+                        raise PermanentApiError(f"Unexpected JSON schema: {schema_err}") from schema_err
+                else:
+                    # Non-JSON response (e.g. data.go.kr XML error envelope)
                     items, total, code, msg = parse_xml_response(resp.text)
 
                 if code in SUCCESS_CODES or (not code and items):
@@ -101,13 +129,23 @@ class KonepsClient:
                         "Collection halted cleanly. Resume tomorrow or request quota expansion."
                     )
 
-                raise KonepsApiError(f"API returned error code {code}: {msg}")
+                # Any other application error code from API is permanent (e.g. invalid parameters)
+                raise PermanentApiError(f"API returned non-retryable error code {code}: {msg}")
 
-            except (requests.RequestException, KonepsApiError) as exc:
+            except (AuthenticationError, QuotaExceededError, PermanentApiError) as non_retryable:
+                # Strictly do not retry permanent failures
+                self.logger.error("Request failed with non-retryable error: %s", redact_sensitive(str(non_retryable)))
+                raise
+
+            except Exception as exc:
+                # Permanent HTTP client errors (4xx) raised by requests session
+                if isinstance(exc, requests.HTTPError) and exc.response is not None:
+                    status = exc.response.status_code
+                    if 400 <= status < 500 and status not in TRANSIENT_STATUS_CODES:
+                        self.logger.error("Request failed with non-retryable HTTP %d: %s", status, exc)
+                        raise PermanentApiError(f"Permanent HTTP {status}: {exc}") from exc
+
                 last_error = exc
-                if isinstance(exc, (AuthenticationError, QuotaExceededError)):
-                    raise
-
                 if attempt == self.max_retries - 1:
                     break
 

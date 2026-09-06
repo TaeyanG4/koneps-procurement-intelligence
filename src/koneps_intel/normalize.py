@@ -38,11 +38,43 @@ def clean_numeric(series: pd.Series) -> pd.Series:
     )
 
 
+DATETIME_COLUMNS = [
+    "bid_notice_date",
+    "bid_notice_begin_datetime",
+    "bid_notice_end_datetime",
+    "opening_datetime",
+    "contract_date",
+    "bid_submission_date",
+    "opening_date",
+    "bidNtceDt",
+    "bidNtceBgnDate",
+    "bidNtceEndDate",
+    "opengDate",
+    "cntrctDate",
+]
+
+
+def clean_datetime(series: pd.Series) -> pd.Series:
+    """Convert string date/datetime series to datetime64[ns], coercing invalid formats to NaT."""
+    if series.empty:
+        return series
+    cleaned_str = series.astype("string").str.strip()
+    return pd.to_datetime(cleaned_str, format="mixed", errors="coerce")
+
+
 def clean_boolean(series: pd.Series) -> pd.Series:
-    """Map Korean/English boolean indicators to boolean series."""
-    mapping = CONTROLLED_CATEGORIES["boolean_yn"]
-    cleaned = series.astype("string").str.strip().map(mapping)
-    return cleaned == "true"
+    """Map Korean/English boolean indicators to nullable boolean series (dtype='boolean')."""
+    if series.empty:
+        return series.astype("boolean")
+    if isinstance(series.dtype, pd.BooleanDtype):
+        return series
+
+    bool_map = {
+        "Y": True, "y": True, "1": True, "여": True, "TRUE": True, "True": True, "true": True,
+        "N": False, "n": False, "0": False, "부": False, "FALSE": False, "False": False, "false": False,
+    }
+    cleaned_str = series.astype("string").str.strip()
+    return cleaned_str.map(bool_map).astype("boolean")
 
 
 def dedupe_frame(df: pd.DataFrame, feed: str) -> Tuple[pd.DataFrame, List[str]]:
@@ -75,6 +107,10 @@ def normalize_feed_frame(df: pd.DataFrame, feed: str) -> pd.DataFrame:
     for col in df.columns:
         if col in numeric_cols or col.endswith("_krw") or col.endswith("_rate"):
             df[col] = clean_numeric(df[col])
+        elif col in DATETIME_COLUMNS or col.endswith("_datetime") or col.endswith("_date"):
+            df[col] = clean_datetime(df[col])
+        elif col.startswith("is_") or col.endswith("Yn") or col.endswith("_yn"):
+            df[col] = clean_boolean(df[col])
 
     # Ensure registration numbers and codes remain clean strings with leading zeros
     str_cols = [
@@ -106,25 +142,20 @@ def build_feed_parquet(
     columns_seen: set[str] = set()
     parts_written = 0
 
+    primary_date_cols = {
+        "bids": ["bid_notice_date", "bidNtceDt", "bid_notice_begin_datetime", "bidNtceBgnDate"],
+        "awards": ["opening_datetime", "opengDate", "bid_notice_date", "bidNtceDt"],
+        "contracts": ["contract_date", "cntrctDate"],
+    }
+
     for path in files:
         meta, rows = RawStorage.read_window(path)
         if not rows:
             continue
 
-        win_start = meta.get("window_start", "")
-        year = win_start[:4] if len(win_start) >= 4 else "unknown"
-        month = win_start[5:7] if len(win_start) >= 7 else "01"
-
-        if partition_by_date:
-            out_dir = base_out / f"year={year}" / f"month={month}"
-            out_dir.mkdir(parents=True, exist_ok=True)
-            out_file = out_dir / path.name.replace(".jsonl.gz", ".parquet")
-        else:
-            out_file = base_out / path.name.replace(".jsonl.gz", ".parquet")
-
-        if out_file.exists() and not force:
-            parts_written += 1
-            continue
+        win_start = str(meta.get("window_start", ""))
+        default_year = win_start[:4] if len(win_start) >= 4 and win_start[:4].isdigit() else "unknown"
+        default_month = win_start[5:7] if len(win_start) >= 7 and win_start[5:7].isdigit() else "01"
 
         df = pd.DataFrame(rows)
         total_before += len(df)
@@ -138,9 +169,54 @@ def build_feed_parquet(
         df["_window_end"] = meta.get("window_end")
         df["_business_code"] = meta.get("business_code")
 
-        df.to_parquet(out_file, index=False, compression="zstd")
-        parts_written += 1
-        logger.info("WRITE %s (rows=%d)", out_file, len(df))
+        if not partition_by_date:
+            out_file = base_out / path.name.replace(".jsonl.gz", ".parquet")
+            if not out_file.exists() or force:
+                df.to_parquet(out_file, index=False, compression="zstd")
+                parts_written += 1
+                logger.info("WRITE %s (rows=%d)", out_file, len(df))
+            else:
+                parts_written += 1
+            continue
+
+        # Row-level event-date partitioning
+        date_candidates = primary_date_cols.get(feed, [])
+        event_col = None
+        for c in date_candidates:
+            if c in df.columns:
+                event_col = c
+                break
+
+        if event_col:
+            parsed_dates = pd.to_datetime(df[event_col], errors="coerce")
+            row_years = parsed_dates.dt.year.fillna(-1).astype(int).apply(
+                lambda y: f"{y:04d}" if y > 0 else default_year
+            )
+            row_months = parsed_dates.dt.month.fillna(-1).astype(int).apply(
+                lambda m: f"{m:02d}" if m > 0 else default_month
+            )
+        else:
+            row_years = pd.Series([default_year] * len(df), index=df.index)
+            row_months = pd.Series([default_month] * len(df), index=df.index)
+
+        df["_part_year"] = row_years
+        df["_part_month"] = row_months
+
+        for (year, month), sub_df in df.groupby(["_part_year", "_part_month"], sort=False):
+            out_dir = base_out / f"year={year}" / f"month={month}"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_file = out_dir / path.name.replace(".jsonl.gz", ".parquet")
+
+            if out_file.exists() and not force:
+                parts_written += 1
+                continue
+
+            write_df = sub_df.drop(columns=["_part_year", "_part_month"])
+            write_df.to_parquet(out_file, index=False, compression="zstd")
+            parts_written += 1
+            logger.info("WRITE %s (rows=%d)", out_file, len(write_df))
+
+        df.drop(columns=["_part_year", "_part_month"], inplace=True)
 
     return {
         "feed": feed,
@@ -199,6 +275,12 @@ def ingest_bidder_report(
     for col in boolean_aliases:
         if col in df.columns:
             df[col] = clean_boolean(df[col])
+
+    # Date cleaning
+    date_aliases = ["bid_submission_date", "contract_date", "bid_notice_date", "opening_datetime"]
+    for col in date_aliases:
+        if col in df.columns:
+            df[col] = clean_datetime(df[col])
 
     # Ensure biz registration no is string
     if "bidder_business_registration_no" in df.columns:

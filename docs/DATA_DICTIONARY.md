@@ -25,9 +25,9 @@ This data dictionary outlines the canonical English column schema produced by th
 | `estimated_price_krw` | `presmPtce` | float64 | Estimated price (ex-VAT reference price, KRW) |
 | `base_amount_krw` | `bsisAmt` | float64 | Base reference amount for multi-pricing pools (KRW) |
 | `business_div_code` | `bsnsDivCd` | string | Procurement division code (`1`: Goods, `3`: Works, `5`: Services) |
-| `business_div_name_ko` | `bsnsDivNm` | string | Korean division label (??, ??, ?? ?) |
-| `contract_method_ko` | `cntrctCnclsMthdNm` | string | Contract procurement method (????, ????, ????) |
-| `award_method_ko` | `sucsfbidMthdNm` | string | Decision criteria (????, ????????, ??????) |
+| `business_div_name_ko` | `bsnsDivNm` | string | Korean division label (물품, 용역, 공사 등) |
+| `contract_method_ko` | `cntrctCnclsMthdNm` | string | Contract procurement method (일반경쟁, 제한경쟁, 수의계약 등) |
+| `award_method_ko` | `sucsfbidMthdNm` | string | Decision criteria (적격심사, 협상에의한낙찰제, 최저가낙찰제 등) |
 | `award_lower_limit_rate` | `sucsfbidLwltRate` | float64 | Lower-bound bid rate threshold (%) |
 
 ---
@@ -69,22 +69,22 @@ This data dictionary outlines the canonical English column schema produced by th
 
 | Canonical English Column | Source Column (Korean) | Data Type | Description |
 | :--- | :--- | :--- | :--- |
-| `procurement_channel` | `????` | string | Procurement channel (e.g. ???? vs ????) |
-| `business_type` | `????` | string | Business category (??, ??, ??) |
-| `bidding_method` | `????` | string | Bidding mechanism (????, ?? ?) |
-| `bid_notice_no` | `??????` | string | Tender notice number |
-| `bid_notice_round` | `??????` | string | Notice revision round |
-| `bid_title_ko` | `???` | string | Tender notice title |
-| `opening_rank` | `????` | int64 / float64 | Opening bid rank (1 = closest to scheduled threshold) |
-| `is_selected_winner` | `???????` | boolean | True if company was officially selected as winner |
-| `bidder_name_ko` | `???` | string | Bidding company name |
-| `bidder_business_registration_no`| `?????????` | string | Bidding company business registration number |
-| `bid_amount_krw` | `????` | float64 | Submitted bid amount (KRW) |
-| `bid_rate` | `???` | float64 | Submitted bid rate relative to reference price (%) |
-| `is_disqualified` | `?????` | boolean | True if bid was disqualified during opening / evaluation |
-| `disqualification_reason_ko`| `???????` | string | Reason stated for disqualification |
-| `current_contract_amount_krw`| `??????` | float64 | Executed contract amount for this term (KRW) |
-| `total_contract_amount_krw` | `?????` | float64 | Cumulative contracted amount (KRW) |
+| `procurement_channel` | `조달방식` | string | Procurement channel (e.g. 자체조달 vs 중앙조달) |
+| `business_type` | `업무구분` | string | Business category (물품, 공사, 용역) |
+| `bidding_method` | `입찰방법` | string | Bidding mechanism (전자입찰, 직찰 등) |
+| `bid_notice_no` | `입찰공고번호` | string | Tender notice number |
+| `bid_notice_round` | `입찰공고차수` | string | Notice revision round |
+| `bid_title_ko` | `공고명` | string | Tender notice title |
+| `opening_rank` | `개찰순위` | int64 / float64 | Opening bid rank (1 = closest to scheduled threshold) |
+| `is_selected_winner` | `낙찰자선정여부` | boolean | True if company was officially selected as winner |
+| `bidder_name_ko` | `업체명` | string | Bidding company name |
+| `bidder_business_registration_no`| `업체사업자등록번호` | string | Bidding company business registration number |
+| `bid_amount_krw` | `투찰금액` | float64 | Submitted bid amount (KRW) |
+| `bid_rate` | `투찰율` | float64 | Submitted bid rate relative to reference price (%) |
+| `is_disqualified` | `부적격여부` | boolean | True if bid was disqualified during opening / evaluation |
+| `disqualification_reason_ko`| `입찰부적격사유` | string | Reason stated for disqualification |
+| `current_contract_amount_krw`| `금차계약금액` | float64 | Executed contract amount for this term (KRW) |
+| `total_contract_amount_krw` | `총계약금액` | float64 | Cumulative contracted amount (KRW) |
 
 ---
 

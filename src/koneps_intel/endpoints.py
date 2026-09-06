@@ -13,12 +13,12 @@ NO_DATA_CODES = {"03", "NODATA_ERROR"}
 AUTH_CODES = {"20", "30", "31", "SERVICE_KEY_IS_NULL", "SERVICE_KEY_IS_NOT_REGISTERED_ERROR"}
 QUOTA_CODES = {"22", "23", "LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS_ERROR"}
 
-# Korean Procurement Business Divisions (????)
+# Korean Procurement Business Divisions (업무구분)
 BUSINESS_DIVISIONS: Dict[str, str] = {
-    "1": "goods",         # ??
-    "2": "foreign",       # ??
-    "3": "construction",  # ??
-    "5": "service",       # ??
+    "1": "goods",         # 물품
+    "2": "foreign",       # 외자
+    "3": "construction",  # 공사
+    "5": "service",       # 용역
 }
 
 

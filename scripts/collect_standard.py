@@ -85,7 +85,9 @@ def main() -> None:
         logger.error("Authentication Failure: %s", e)
         sys.exit(2)
     except QuotaExceededError as e:
-        logger.warning("Quota Limit Reached: %s", e)
+        logger.error("Quota Exceeded (HTTP 429 / LIMIT_EXCEEDED): %s", e)
+        logger.error("Collection paused safely. Windows completed so far are preserved in manifest.")
+        logger.error("Resume collection tomorrow with the exact same command once quota resets.")
         sys.exit(3)
     except Exception as e:
         logger.exception("Unexpected error during collection: %s", e)

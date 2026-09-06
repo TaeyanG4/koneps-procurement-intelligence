@@ -9,6 +9,7 @@ import pytest
 from koneps_intel.normalize import (
     build_feed_parquet,
     clean_boolean,
+    clean_datetime,
     clean_numeric,
     ingest_bidder_report,
     normalize_feed_frame,
@@ -95,3 +96,129 @@ def test_ingest_bidder_report(tmp_path):
     assert df["bid_amount_krw"].iloc[0] == 1200000000.0
     assert bool(df["is_selected_winner"].iloc[0]) is True
     assert bool(df["is_selected_winner"].iloc[1]) is False
+
+
+def test_clean_boolean_nullable():
+    s = pd.Series(["Y", "N", "여", "부", "1", "0", None, "", "invalid", "TRUE", "false"])
+    cleaned = clean_boolean(s)
+    assert cleaned.dtype.name == "boolean"
+    assert cleaned.iloc[0] is True or cleaned.iloc[0] == True
+    assert cleaned.iloc[1] is False or cleaned.iloc[1] == False
+    assert cleaned.iloc[2] is True or cleaned.iloc[2] == True
+    assert cleaned.iloc[3] is False or cleaned.iloc[3] == False
+    assert cleaned.iloc[4] is True or cleaned.iloc[4] == True
+    assert cleaned.iloc[5] is False or cleaned.iloc[5] == False
+    assert pd.isna(cleaned.iloc[6])
+    assert pd.isna(cleaned.iloc[7])
+    assert pd.isna(cleaned.iloc[8])
+    assert cleaned.iloc[9] is True or cleaned.iloc[9] == True
+    assert cleaned.iloc[10] is False or cleaned.iloc[10] == False
+
+
+def test_clean_datetime():
+    s = pd.Series(["2026-09-01 10:00:00", "2026-09-01", "20260901", None, "", "invalid"])
+    cleaned = clean_datetime(s)
+    assert pd.api.types.is_datetime64_any_dtype(cleaned)
+    assert cleaned.iloc[0] == pd.Timestamp("2026-09-01 10:00:00")
+    assert cleaned.iloc[1] == pd.Timestamp("2026-09-01 00:00:00")
+    assert cleaned.iloc[2] == pd.Timestamp("2026-09-01 00:00:00")
+    assert pd.isna(cleaned.iloc[3])
+    assert pd.isna(cleaned.iloc[4])
+    assert pd.isna(cleaned.iloc[5])
+
+
+def test_build_feed_parquet_cross_month_partitioning(tmp_path):
+    raw_dir = tmp_path / "raw"
+    processed_dir = tmp_path / "processed"
+
+    bids_raw = raw_dir / "bids"
+    bids_raw.mkdir(parents=True, exist_ok=True)
+    sample_file = bids_raw / "bids_goods_20260829_20260904.jsonl.gz"
+
+    meta = {"window_start": "2026-08-29", "window_end": "2026-09-04", "business_code": "1"}
+    # One item in August, one item in September
+    item_aug = {
+        "bidNtceNo": "20260831001",
+        "bidNtceOrd": "00",
+        "bidClsfcNo": "01",
+        "rbidNo": "0",
+        "bidNtceDt": "2026-08-31 10:00:00",
+        "bidNtceNm": "August Bid",
+    }
+    item_sep = {
+        "bidNtceNo": "20260901001",
+        "bidNtceOrd": "00",
+        "bidClsfcNo": "01",
+        "rbidNo": "0",
+        "bidNtceDt": "2026-09-01 09:30:00",
+        "bidNtceNm": "September Bid",
+    }
+
+    with gzip.open(sample_file, "wt", encoding="utf-8") as f:
+        f.write(json.dumps({"__collector_meta__": meta}) + "\n")
+        f.write(json.dumps(item_aug) + "\n")
+        f.write(json.dumps(item_sep) + "\n")
+
+    report = build_feed_parquet(raw_dir, processed_dir, "bids", partition_by_date=True)
+    assert report["parquet_parts"] == 2
+    assert report["rows_after_dedupe"] == 2
+
+    aug_parquet = processed_dir / "bids" / "year=2026" / "month=08" / "bids_goods_20260829_20260904.parquet"
+    sep_parquet = processed_dir / "bids" / "year=2026" / "month=09" / "bids_goods_20260829_20260904.parquet"
+
+    assert aug_parquet.exists()
+    assert sep_parquet.exists()
+
+    df_aug = pd.read_parquet(aug_parquet)
+    assert len(df_aug) == 1
+    assert df_aug["bid_notice_no"].iloc[0] == "20260831001"
+
+    df_sep = pd.read_parquet(sep_parquet)
+    assert len(df_sep) == 1
+    assert df_sep["bid_notice_no"].iloc[0] == "20260901001"
+
+
+def test_ingest_bidder_report_xlsx(tmp_path):
+    # Create sample xlsx
+    data = {
+        "입찰공고번호": ["20260901001"],
+        "공고명": ["테스트 입찰공고"],
+        "업체명": ["(주)테스트"],
+        "투찰금액": ["500,000,000"],
+        "낙찰자선정여부": ["Y"],
+        "투찰일자": ["2026-09-01 10:00:00"],
+    }
+    df_raw = pd.DataFrame(data)
+    xlsx_path = tmp_path / "sample_report.xlsx"
+    df_raw.to_excel(xlsx_path, index=False)
+
+    out_parquet = tmp_path / "out.parquet"
+    df_out = ingest_bidder_report(xlsx_path, out_parquet)
+
+    assert out_parquet.exists()
+    assert len(df_out) == 1
+    assert df_out["bidder_name_ko"].iloc[0] == "(주)테스트"
+    assert df_out["bid_amount_krw"].iloc[0] == 500000000.0
+    assert df_out["is_selected_winner"].iloc[0] is True or df_out["is_selected_winner"].iloc[0] == True
+    assert pd.api.types.is_datetime64_any_dtype(df_out["bid_submission_date"])
+
+
+def test_ingest_bidder_report_xls_support(tmp_path, monkeypatch):
+    from unittest.mock import MagicMock
+    mock_df = pd.DataFrame({
+        "입찰공고번호": ["20260901002"],
+        "공고명": ["XLS 테스트"],
+        "업체명": ["(주)엑셀"],
+        "투찰금액": ["100,000"],
+        "낙찰자선정여부": ["N"],
+    })
+    monkeypatch.setattr(pd, "read_excel", MagicMock(return_value=mock_df))
+
+    fake_xls = tmp_path / "report.xls"
+    fake_xls.write_bytes(b"dummy")
+
+    out_parquet = tmp_path / "xls_out.parquet"
+    df_out = ingest_bidder_report(fake_xls, out_parquet)
+    assert len(df_out) == 1
+    assert df_out["bid_notice_no"].iloc[0] == "20260901002"
+    assert df_out["is_selected_winner"].iloc[0] is False or df_out["is_selected_winner"].iloc[0] == False

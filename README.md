@@ -1,14 +1,13 @@
-# South Korea Public Procurement Intelligence ? KONEPS
+# South Korea Public Procurement Intelligence — KONEPS
 
 [![CI Pipeline](https://github.com/TaeyanG4/koneps-procurement-intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/TaeyanG4/koneps-procurement-intelligence/actions)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue.svg)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Format: Parquet](https://img.shields.io/badge/Data%20Format-Partitioned%20Parquet%20(ZSTD)-orange.svg)](https://parquet.apache.org/)
 
-Production-grade, reproducible data collection and ETL pipeline for South Korea's **KONEPS** (Korea ON-line E-Procurement System / ??? ????) public procurement ecosystem.
+Production-grade, reproducible data collection and ETL pipeline for South Korea's **KONEPS** (Korea ON-line E-Procurement System / 국가종합전자조달시스템) public procurement ecosystem.
 
 Designed to prepare a publication-ready, machine-learning-friendly research dataset titled:
-> **"South Korea Public Procurement Intelligence ? KONEPS"**
+> **"South Korea Public Procurement Intelligence — KONEPS"**
 
 ---
 
@@ -43,27 +42,27 @@ The pipeline enforces strict separation of concerns across data layers:
 
 ```
 [ data.go.kr API ]                [ Official Bidder Report ]
-         ?                                    ?
-         ?                                    ?
+         │                                    │
+         ▼                                    ▼
   (Paced Requests)                   (CSV / XLS / XLSX)
-         ?                                    ?
-         ?                                    ?
+         │                                    │
+         ▼                                    ▼
   data/raw/*.jsonl.gz                scripts/ingest_bidder_report.py
-  (Immutable Raw + Manifest)                  ?
-         ?                                    ?
-         ?                          data/processed/bidder_outcomes/
+  (Immutable Raw + Manifest)                  │
+         │                                    ▼
+         │                          data/processed/bidder_outcomes/
   scripts/build_dataset.py
-         ?
-         ?
+         │
+         ▼
   data/processed/<dataset>/year=YYYY/month=MM/*.parquet
   (Canonical English + Korean Columns + Strict Types)
-         ?
-         ?
+         │
+         ▼
   scripts/quality_check.py
   (Cardinality Inspection, Duplicate Auditing, Anomaly Bounds)
-         ?
-         ?
-  [ ML-Ready Curated Tables & Kaggle Gold Publication ]
+         │
+         ▼
+  [ ML-Ready Curated Tables & Kaggle Publication ]
 ```
 
 - **`data/raw/`**: Immutable, compressed JSONL archives (`*.jsonl.gz`) tracking window metadata and completion status in `manifest.json`.
@@ -81,6 +80,8 @@ The pipeline enforces strict separation of concerns across data layers:
    - **Contracts (`contracts`)**: Final contracted values, execution dates, and contracting parties.
 2. **Official Bidder Outcome Report Export (`bidder_outcomes`)**:
    - Official portal export providing comprehensive company-level submissions (all bidders, submitted amounts, bid rates, and disqualification reasons).
+
+For licensing details and terms of use under Korea Open Government License (KOGL / 공공누리), see [DATA_SOURCES.md](docs/DATA_SOURCES.md).
 
 ---
 
@@ -115,8 +116,8 @@ pip install -e .
 ## 6. API Key Setup
 
 1. Register an account on [data.go.kr](https://www.data.go.kr/).
-2. Apply for `???_???? ????????????` (Standard Open Data Service, automatic instant approval).
-3. Copy your **decoding service key** (?? ??? - Decoding).
+2. Apply for `조달청_나라장터 공공데이터개방표준서비스` (Standard Open Data Service, automatic instant approval).
+3. Copy your **decoding service key** (일반 인증키 - Decoding).
 4. Create a local `.env` file from `.env.example`:
 
 ### Windows (PowerShell)
@@ -235,55 +236,56 @@ python scripts/quality_check.py data/processed/*/*/*.parquet --strict
 
 ```
 koneps-procurement-intelligence/
-??? src/
-?   ??? koneps_intel/
-?       ??? __init__.py           # Package exports & version
-?       ??? api.py               # Resilient HTTP client & retry logic
-?       ??? config.py            # Environment config & key redaction
-?       ??? endpoints.py         # Feed definitions & API parameters
-?       ??? collector.py         # Collection orchestrator
-?       ??? storage.py           # Raw storage & manifest tracking
-?       ??? parsers.py           # Response extractors & window generators
-?       ??? schemas.py           # Column aliases & controlled vocabularies
-?       ??? normalize.py         # Type casting & Parquet conversion
-?       ??? quality.py           # Quality checks & anomaly detection
-?       ??? utils.py             # Structured logging & secret filtering
-?
-??? scripts/
-?   ??? collect_standard.py      # Raw collection CLI
-?   ??? build_dataset.py         # Parquet normalization CLI
-?   ??? ingest_bidder_report.py  # Bidder report ingestion CLI
-?   ??? quality_check.py         # Quality profiling CLI
-?
-??? data/
-?   ??? raw/                     # Raw immutable .jsonl.gz files
-?   ??? staging/                 # Intermediate processing scratchpad
-?   ??? processed/               # Partitioned Parquet datasets
-?   ??? logs/                    # Pipeline execution logs
-?
-??? tests/
-?   ??? fixtures/                # Mock API responses and sample files
-?   ??? test_api.py              # API client & error handling tests
-?   ??? test_parsers.py          # Response & window parsing tests
-?   ??? test_collector.py        # Collection & resume logic tests
-?   ??? test_normalize.py        # Schema casting & Parquet tests
-?   ??? test_quality.py          # Quality profiling & anomaly tests
-?
-??? docs/
-?   ??? DATA_SOURCES.md          # Data sources & licensing documentation
-?   ??? DATA_DICTIONARY.md       # Canonical schemas & field descriptions
-?   ??? ARCHITECTURE.md          # System architecture & design principles
-?
-??? .github/
-?   ??? workflows/
-?       ??? ci.yml               # Automated GitHub CI testing workflow
-?
-??? .env.example                 # Template for environment credentials
-??? .gitignore                   # Exclusions for secrets, caches, and datasets
-??? pyproject.toml               # Package build configuration & pytest options
-??? requirements.txt             # Locked dependencies
-??? PROJECT_STATUS.md            # Implementation roadmap and status
-??? README.md                    # Project documentation
+├── src/
+│   └── koneps_intel/
+│       ├── __init__.py           # Package exports & version
+│       ├── api.py               # Resilient HTTP client & retry logic
+│       ├── config.py            # Environment config & key redaction
+│       ├── endpoints.py         # Feed definitions & API parameters
+│       ├── collector.py         # Collection orchestrator & recovery
+│       ├── storage.py           # Raw storage & manifest tracking
+│       ├── parsers.py           # Response extractors & window generators
+│       ├── schemas.py           # Column aliases & controlled vocabularies
+│       ├── normalize.py         # Type casting & Parquet conversion
+│       ├── quality.py           # Quality checks & anomaly detection
+│       └── utils.py             # Structured logging & secret filtering
+│
+├── scripts/
+│   ├── collect_standard.py      # Raw collection CLI
+│   ├── build_dataset.py         # Parquet normalization CLI
+│   ├── ingest_bidder_report.py  # Bidder report ingestion CLI
+│   └── quality_check.py         # Quality profiling CLI
+│
+├── data/
+│   ├── raw/                     # Raw immutable .jsonl.gz files
+│   ├── staging/                 # Intermediate processing scratchpad
+│   ├── processed/               # Partitioned Parquet datasets
+│   └── logs/                    # Pipeline execution logs
+│
+├── tests/
+│   ├── fixtures/                # Mock API responses and sample files
+│   ├── test_api.py              # API client & error handling tests
+│   ├── test_parsers.py          # Response & window parsing tests
+│   ├── test_collector.py        # Collection & resume logic tests
+│   ├── test_normalize.py        # Schema casting & Parquet tests
+│   ├── test_quality.py          # Quality profiling & anomaly tests
+│   └── test_text_integrity.py   # Encoding & text corruption tests
+│
+├── docs/
+│   ├── DATA_SOURCES.md          # Data sources & licensing documentation
+│   ├── DATA_DICTIONARY.md       # Canonical schemas & field descriptions
+│   └── ARCHITECTURE.md          # System architecture & design principles
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml               # Automated GitHub CI testing workflow
+│
+├── .env.example                 # Template for environment credentials
+├── .gitignore                   # Exclusions for secrets, caches, and datasets
+├── pyproject.toml               # Package build configuration & pytest options
+├── requirements.txt             # Locked dependencies
+├── PROJECT_STATUS.md            # Implementation roadmap and status
+└── README.md                    # Project documentation
 ```
 
 ---
@@ -296,10 +298,15 @@ koneps-procurement-intelligence/
 
 ---
 
-## 13. Kaggle Publication Roadmap
+## 13. Implementation & Verification Status
 
-- [x] Phase 1: Modular data engineering pipeline & test suite.
-- [ ] Phase 2: Live collection of 1-year historical baseline.
-- [ ] Phase 3: Empirical cardinality verification (Tender 1:N Bidder).
-- [ ] Phase 4: Leak-free tabular feature engineering for machine learning.
-- [ ] Phase 5: Publication of **"South Korea Public Procurement Intelligence ? KONEPS"** on Kaggle with baseline EDA and prediction notebooks.
+| Component | Status | Verification |
+| :--- | :--- | :--- |
+| **API Client (`api.py`)** | IMPLEMENTED | Tested with unit mocks & error simulations (retries, timeouts, non-retryable 4xx/client errors, quota limits). |
+| **Manifest & Resumability (`storage.py`, `collector.py`)** | IMPLEMENTED | Tested with corrupted files, missing files, partial downloads, and manifest reconstruction (Cases A–E). |
+| **Normalization & Partitioning (`normalize.py`)** | IMPLEMENTED | Tested with nullable boolean (`boolean` dtype), mixed datetime formats, and cross-month event-date partitioning. |
+| **Bidder Report Ingestion (`ingest_bidder_report.py`)** | IMPLEMENTED | Tested with CSV (`utf-8-sig`, `cp949`), `.xlsx`, and `.xls` (via `xlrd`). |
+| **Quality Profiling (`quality.py`, `quality_check.py`)** | IMPLEMENTED | Tested with clean and anomalous parquet frames. |
+| **CI Automation (`ci.yml`)** | IMPLEMENTED | Automated testing on Python 3.11 & 3.12 across all pushes and pull requests. |
+| **Historical 1-Year Live Crawl** | PLANNED | Ready to run with user's registered data.go.kr service key. |
+| **Relational Kaggle Publication** | PLANNED | Curated tables linking Tender Notice → Bidders → Award → Contract. |

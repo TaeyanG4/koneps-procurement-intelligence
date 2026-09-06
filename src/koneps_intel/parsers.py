@@ -55,7 +55,16 @@ def feed_windows(spec: FeedSpec, start: date, end: date) -> Iterable[Tuple[date,
 
 def extract_response(payload: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], int, str, str]:
     """Extract list of items, total record count, resultCode, and resultMsg from JSON."""
+    if not isinstance(payload, dict):
+        raise ValueError(f"Expected JSON object payload, got {type(payload).__name__}")
+
+    if "response" not in payload and "header" not in payload:
+        raise ValueError(f"Unexpected JSON schema: missing 'response' or 'header' in {list(payload.keys())}")
+
     response = payload.get("response", payload)
+    if not isinstance(response, dict):
+        raise ValueError(f"Expected dict for 'response', got {type(response).__name__}")
+
     header = response.get("header", {}) or {}
     body = response.get("body", {}) or {}
     code = str(header.get("resultCode", ""))

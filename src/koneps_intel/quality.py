@@ -65,7 +65,14 @@ def profile_dataframe(df: pd.DataFrame, source_name: str) -> Dict[str, Any]:
     out["anomalies"]["negative_monetary_counts"] = negative_counts
 
     # Rate / percentage checks
-    rate_cols = [c for c in df.columns if "rate" in c.lower() or "?" in c]
+    known_rate_cols = {
+        "sucsfbidRate", "bid_rate", "award_rate", "award_lower_limit_rate",
+        "투찰율", "낙찰률", "sucsfbidLwltRate",
+    }
+    rate_cols = [
+        c for c in df.columns
+        if c in known_rate_cols or any(term in c.lower() for term in ["_rate", "rate", "percentage", "percent", "_율"])
+    ]
     invalid_rates: Dict[str, int] = {}
     for col in rate_cols:
         if pd.api.types.is_numeric_dtype(df[col]):
