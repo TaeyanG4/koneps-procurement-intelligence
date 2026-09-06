@@ -278,9 +278,19 @@ koneps-procurement-intelligence/
 │   └── test_text_integrity.py   # Encoding & text corruption tests
 │
 ├── docs/
-│   ├── DATA_SOURCES.md          # Data sources & licensing documentation
-│   ├── DATA_DICTIONARY.md       # Canonical schemas & field descriptions
-│   └── ARCHITECTURE.md          # System architecture & design principles
+│   ├── ARCHITECTURE.md          # System architecture & integrity principles (Korean)
+│   ├── ARCHITECTURE.en.md       # System architecture & integrity principles (English)
+│   ├── DATA_SOURCES.md          # Data sources & licensing guide (Korean)
+│   ├── DATA_SOURCES.en.md       # Data sources & licensing guide (English)
+│   ├── DATA_DICTIONARY.md       # Canonical schemas & field descriptions (Korean)
+│   ├── DATA_DICTIONARY.en.md    # Canonical schemas & field descriptions (English)
+│   ├── LIVE_VALIDATION.md       # 1-day live smoke test report (Korean)
+│   ├── LIVE_VALIDATION.en.md    # 1-day live smoke test report (English)
+│   ├── PILOT_2026_08.md         # August 2026 pilot audit report (Korean)
+│   ├── PILOT_2026_08.en.md      # August 2026 pilot audit report (English)
+│   ├── RELATIONAL_MODEL.md      # Relational join specification (Korean)
+│   ├── RELATIONAL_MODEL.en.md   # Relational join specification (English)
+│   └── generated/               # Generated project Word (.docx) documentation
 │
 ├── .github/
 │   └── workflows/
@@ -297,22 +307,37 @@ koneps-procurement-intelligence/
 
 ---
 
-## 12. Schema & Key Metrics
+## 12. Documentation Index
+
+All core technical designs, data dictionaries, and empirical validation reports are maintained in both English and Korean Markdown, as well as generated Word (.docx) documents:
+
+| Document | English Markdown | Korean Markdown | English DOCX | Korean DOCX |
+| :--- | :--- | :--- | :--- | :--- |
+| **System Architecture** | [ARCHITECTURE.en.md](docs/ARCHITECTURE.en.md) | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | [ARCHITECTURE.en.docx](docs/generated/ARCHITECTURE.en.docx) | [ARCHITECTURE.ko.docx](docs/generated/ARCHITECTURE.ko.docx) |
+| **Data Sources & Licensing** | [DATA_SOURCES.en.md](docs/DATA_SOURCES.en.md) | [DATA_SOURCES.md](docs/DATA_SOURCES.md) | [DATA_SOURCES.en.docx](docs/generated/DATA_SOURCES.en.docx) | [DATA_SOURCES.ko.docx](docs/generated/DATA_SOURCES.ko.docx) |
+| **Data Dictionary** | [DATA_DICTIONARY.en.md](docs/DATA_DICTIONARY.en.md) | [DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md) | [DATA_DICTIONARY.en.docx](docs/generated/DATA_DICTIONARY.en.docx) | [DATA_DICTIONARY.ko.docx](docs/generated/DATA_DICTIONARY.ko.docx) |
+| **Live API Validation** | [LIVE_VALIDATION.en.md](docs/LIVE_VALIDATION.en.md) | [LIVE_VALIDATION.md](docs/LIVE_VALIDATION.md) | [LIVE_VALIDATION.en.docx](docs/generated/LIVE_VALIDATION.en.docx) | [LIVE_VALIDATION.ko.docx](docs/generated/LIVE_VALIDATION.ko.docx) |
+| **August 2026 Pilot Audit** | [PILOT_2026_08.en.md](docs/PILOT_2026_08.en.md) | [PILOT_2026_08.md](docs/PILOT_2026_08.md) | [PILOT_2026_08.en.docx](docs/generated/PILOT_2026_08.en.docx) | [PILOT_2026_08.ko.docx](docs/generated/PILOT_2026_08.ko.docx) |
+| **Relational Model Spec** | [RELATIONAL_MODEL.en.md](docs/RELATIONAL_MODEL.en.md) | [RELATIONAL_MODEL.md](docs/RELATIONAL_MODEL.md) | [RELATIONAL_MODEL.en.docx](docs/generated/RELATIONAL_MODEL.en.docx) | [RELATIONAL_MODEL.ko.docx](docs/generated/RELATIONAL_MODEL.ko.docx) |
+
+---
+
+## 13. Schema & Key Metrics
 
 The pipeline standardizes verbose Korean administrative column names into clean, ML-ready canonical English identifiers:
 
 | Dataset | Primary Key | Key Analytical Features |
 | :--- | :--- | :--- |
-| **Tenders (`bids`)** | `bid_notice_no`, `bid_notice_ord` | `budget_amount`, `estimated_price`, `bid_method`, `contract_method`, `is_re_bid` |
-| **Awards (`awards`)** | `bid_notice_no`, `bid_notice_ord` | `award_amount`, `award_rate`, `scheduled_price`, `bidder_count`, `is_failed_bid` |
-| **Contracts (`contracts`)** | `contract_no`, `contract_ord` | `contract_amount`, `contract_date`, `agency_name`, `supplier_name`, `contract_method` |
-| **Bidder Outcomes (`bidder_outcomes`)** | `bid_notice_no`, `business_reg_no` | `bid_amount`, `bid_rate`, `rank`, `is_successful_bid`, `disqualification_reason` |
+| **Tenders (`bids`)** | `bid_notice_no`, `bid_notice_round` | `budget_amount`, `estimated_price`, `bid_method`, `contract_method`, `is_re_bid` |
+| **Awards (`awards`)** | `bid_notice_no`, `bid_notice_round`, `bidder_business_registration_no`, `bid_amount_krw`, `bid_submission_time`, `opening_rank` | `bid_amount_krw`, `bid_rate`, `scheduled_price`, `award_amount_krw`, `is_selected_winner` |
+| **Contracts (`contracts`)** | `unified_contract_no` | `contract_amount`, `contract_date`, `agency_name`, `supplier_name`, `contract_method` |
+| **Bidder Outcomes (`bidder_outcomes`)** | `bid_notice_no`, `bidder_business_registration_no` | `bid_amount`, `bid_rate`, `rank`, `is_selected_winner`, `disqualification_reason` |
 
 For exhaustive data types, Korean source field names, and nullability constraints, see [DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md).
 
 ---
 
-## 13. Kaggle Dataset Packaging Guide
+## 14. Kaggle Dataset Packaging Guide
 
 1. **Dataset Structure**:
    - Provide clean Star/Snowflake tables: `bids.parquet`, `awards.parquet`, `contracts.parquet`, `bidder_outcomes.parquet`.
@@ -332,7 +357,7 @@ For exhaustive data types, Korean source field names, and nullability constraint
 
 ---
 
-## 14. Exploratory Data Analysis & Machine Learning Ideas
+## 15. Exploratory Data Analysis & Machine Learning Ideas
 
 - **Award Rate Prediction (Regression)**: Predict `award_rate` using tender budget, category code, seasonality, and procuring agency history.
 - **Tender Failure Early Warning (Classification)**: Predict `is_failed_bid` prior to bid opening using requirement string complexity and announcement duration.
@@ -344,17 +369,16 @@ For exhaustive data types, Korean source field names, and nullability constraint
 
 ---
 
-## 15. Security & Data Governance Policy
+## 16. Security & Data Governance Policy
 
 - **No Secrets in Git**: Service keys are never committed and must be provided via local `.env`.
 - **Code Only in GitHub**: Collected procurement datasets are excluded from Git (`.gitignore`) and distributed via Kaggle Datasets.
 - **Privacy & Identifier Protection**: Before public Kaggle publication, company representative names and business registration numbers can be pseudonymized with SHA-256 hashing if required.
 - **Data Provenance & License Verification**: Specific terms of use follow the permissions indicated on data.go.kr and KONEPS per service endpoint. All source licenses will be explicitly re-verified prior to public Kaggle release.
 
-
 ---
 
-## 16. Implementation & Verification Status
+## 17. Implementation & Verification Status
 
 | Component | Status | Verification |
 | :--- | :--- | :--- |
@@ -365,19 +389,20 @@ For exhaustive data types, Korean source field names, and nullability constraint
 | **Quality Profiling (`quality.py`, `quality_check.py`)** | IMPLEMENTED | Verified with clean and anomalous parquet frames. |
 | **CI Automation (`ci.yml`)** | IMPLEMENTED | Automated testing on Python 3.11 & 3.12 across all pushes and pull requests. |
 | **Live API Authentication & 1-Day Smoke Test** | VERIFIED | Completed 1-day live collection and Parquet normalization for 2026-09-01 across bids, awards, and contracts. |
-| **1-Month Benchmark & Pilot Validation** | VERIFIED | Completed August 2026 pilot across all feeds (2,268,948 raw rows, 2,255,721 Parquet rows) with zero data corruption (see [PILOT_2026_08.md](docs/PILOT_2026_08.md)). |
-| **Cross-Feed Join Cardinality Design** | NEXT MILESTONE | Empirical key alignment and bridge design across Tender Notice (1), Bidders (N), Award (1), and Contract (N). |
-| **Historical 1-Year Live Crawl** | PLANNED | Scale historical collection after cardinality and schema stabilization. |
-| **Relational Master Join** | PLANNED | Star schema joining Tender Notice $\rightarrow$ Bidders $\rightarrow$ Award $\rightarrow$ Contract. |
+| **1-Month Benchmark & Pilot Validation** | VERIFIED | Completed August 2026 pilot across all feeds (2,268,948 raw rows, 2,256,788 Parquet rows) with zero data corruption (see [PILOT_2026_08.md](docs/PILOT_2026_08.md)). |
+| **Pilot Audit Correction & Relational Model** | VERIFIED | Scoped event-date filtering, lossless deduplication grain, and [RELATIONAL_MODEL.md](docs/RELATIONAL_MODEL.md) specification completed. |
+| **Relational Curated Tables Implementation (August Pilot)** | NEXT MILESTONE | Physical creation of `tenders`, `bidder_submissions`, `award_outcomes`, `contracts`, and `bridge` tables. |
+| **Historical 1-Year Live Crawl** | PLANNED | Scale historical collection after relational validation. |
 | **Kaggle Dataset v1 Target** | PLANNED | Curated public dataset release and baseline exploratory analysis notebook. |
 
 ---
 
-## 17. Roadmap & Next Steps
+## 18. Roadmap & Next Steps
 
 1. ~~**Perform 1-Day Live Smoke Test**~~: Completed (verified across all 3 feeds for 2026-09-01).
 2. ~~**Collect 1-Month Benchmark & Audit**~~: Completed (August 2026 crawl with 2.26M rows and detailed audit report in [PILOT_2026_08.md](docs/PILOT_2026_08.md)).
-3. **Cross-Feed Join Cardinality Design**: Formulate robust primary/foreign keys and bridge structures across feeds.
-4. **Historical 1-Year MVP Collection & Bidder Reports**: Scale up historical crawling and link detailed bidder participation data.
-5. **Construct Relational Master Dataset**: Eliminate duplicate joining hazards and generate leak-free tabular feature sets.
-6. **Publish Kaggle Research Dataset v1**: Release curated Parquet datasets, comprehensive data card, and starter EDA notebook.
+3. ~~**Correct Pilot Audit & Formulate Relational Model**~~: Completed (lossless grain verified, [RELATIONAL_MODEL.md](docs/RELATIONAL_MODEL.md) published).
+4. **Implement Relational Curated Tables (August Pilot)**: Materialize normalized relational tables and bridge structure.
+5. **Historical 1-Year MVP Collection & Bidder Reports**: Scale up historical crawling and link detailed bidder participation data.
+6. **Construct Relational Master Dataset**: Eliminate duplicate joining hazards and generate leak-free tabular feature sets.
+7. **Publish Kaggle Research Dataset v1**: Release curated Parquet datasets, comprehensive data card, and starter EDA notebook.

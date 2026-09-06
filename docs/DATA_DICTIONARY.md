@@ -1,136 +1,149 @@
-# Data Dictionary
+# 데이터 사전 (Data Dictionary)
 
-This data dictionary outlines the canonical English column schema produced by the normalization pipeline, preserving original Korean names while presenting standard types for downstream analytics and machine learning.
+**한국어** | [English](DATA_DICTIONARY.en.md)
+
+본 문서는 **대한민국 공공조달 인텔리전스 (KONEPS)** 파이프라인에서 정규화된 표준 데이터셋의 영문 표준 컬럼명, 원천 한글 필드명, 데이터 타입 및 비즈니스 정의를 기술합니다.
 
 ---
 
-## 1. Tender Notices (`bids`)
+## 1. 입찰공고 (`bids`)
 
-| Canonical English Column | Source API Field (Korean) | Data Type | Description |
+- **원천 API 오퍼레이션**: `getDataSetOpnStdBidPblancInfo`
+- **기본 식별키 (Candidate PK)**: `(bid_notice_no, bid_notice_round)`
+
+| 표준 영문 컬럼명 | 원천 API 필드 (한글) | 데이터 타입 | 설명 및 비즈니스 정의 |
 | :--- | :--- | :--- | :--- |
-| `bid_notice_no` | `bidNtceNo` | string | Unique tender announcement number (e.g. `R26BK01708300`) |
-| `bid_notice_round` | `bidNtceOrd` | string | Announcement revision/round sequence (e.g. `000`) |
-| `bid_classification_no` | `bidClsfcNo` | string | Sub-classification index under multi-item tenders |
-| `rebid_no` | `rbidNo` | string | Re-bidding iteration counter |
-| `bid_title_ko` | `bidNtceNm` | string | Original Korean title of the tender |
-| `notice_agency_code` | `ntceInsttCd` | string | Official identifier of publishing agency |
-| `notice_agency_name_ko` | `ntceInsttNm` | string | Name of publishing procuring agency |
-| `demand_agency_code` | `dmndInsttCd` | string | Official identifier of end-demand agency |
-| `demand_agency_name_ko` | `dmndInsttNm` | string | Name of end-demand agency |
-| `bid_notice_date` | `bidNtceDate` / `bidNtceDt` | string / date | Date the notice was officially published |
-| `bid_notice_time` | `bidNtceBgn` | string | Time the notice was published (HH:MM) |
-| `bid_begin_date` | `bidBeginDate` | string / date | Tender submission window start date |
-| `bid_close_date` | `bidClseDate` | string / date | Tender submission deadline date |
-| `opening_date` | `opengDate` | string / date | Bid opening date |
-| `assigned_budget_krw` | `asignBdgtAmt` | float64 | Total budget allocated for the procurement (KRW) |
-| `estimated_price_krw` | `presmptPrce` | float64 | Estimated price (ex-VAT reference price, KRW) |
-| `base_amount_krw` | `bsisAmt` | float64 | Base reference amount for multi-pricing pools (KRW) |
-| `business_div_name_ko` | `bsnsDivNm` | string | Korean division label (물품, 용역, 공사 등) |
-| `contract_method_ko` | `cntrctCnclsMthdNm` | string | Contract procurement method (일반경쟁, 수의계약 등) |
-| `contract_status_ko` | `cntrctCnclsSttusNm`| string | Contract conclusion status |
-| `award_method_ko` | `bidwinrDcsnMthdNm` | string | Decision criteria (적격심사, 소액수의, 최저가 등) |
-| `award_lower_limit_rate` | `sucsfbidLwltRate` | float64 | Lower-bound bid rate threshold (%) |
-| `is_joint_contract` | `cmmnCntrctYn` | boolean | Joint venture contracting indicator |
-| `is_electronic_bid` | `elctrnBidYn` | boolean | Electronic bidding indicator |
-| `is_international_bid` | `intrntnlBidYn` | boolean | International tender indicator |
-| `is_pps_notice` | `ppsNtceYn` | boolean | Public Procurement Service managed notice |
-| `is_region_limited` | `rgnLmtYn` | boolean | Regional restriction indicator |
-| `is_industry_limited` | `indstrytyLmtYn` | boolean | Industry/license restriction indicator |
+| `bid_notice_no` | `bidNtceNo` | string | 고유 입찰공고번호 (예: `R26BK01708300`) |
+| `bid_notice_round` | `bidNtceOrd` | string | 공고 차수/정정 차수 (예: `000`, `001`) |
+| `bid_classification_no` | `bidClsfcNo` | string | 복수 물품 분할 발주 시 공고 분류 번호 |
+| `rebid_no` | `rbidNo` | string | 재입찰/재공고 차수 |
+| `bid_title_ko` | `bidNtceNm` | string | 원천 입찰공고명 |
+| `notice_agency_code` | `ntceInsttCd` | string | 공고 발주기관 7자리 표준코드 |
+| `notice_agency_name_ko` | `ntceInsttNm` | string | 발주기관명 |
+| `demand_agency_code` | `dmndInsttCd` | string | 실수요기관 7자리 표준코드 |
+| `demand_agency_name_ko` | `dmndInsttNm` | string | 수요기관명 |
+| `bid_notice_date` | `bidNtceDate` / `bidNtceDt` | string / date | 입찰공고 게시일자 (`YYYY-MM-DD`) |
+| `bid_notice_time` | `bidNtceBgn` | string | 공고 게시시각 (`HH:MM`) |
+| `bid_begin_date` | `bidBeginDate` | string / date | 입찰서 접수 개시일시 |
+| `bid_close_date` | `bidClseDate` | string / date | 입찰서 접수 마감일시 |
+| `opening_date` | `opengDate` | string / date | 입찰 개찰일시 |
+| `assigned_budget_krw` | `asignBdgtAmt` | float64 | 배정예산액 (원) |
+| `estimated_price_krw` | `presmptPrce` | float64 | 추정가격 (부가가치세 제외 기준가, 원) |
+| `base_amount_krw` | `bsisAmt` | float64 | 복수예비가격 추첨을 위한 기초금액 (원) |
+| `business_div_name_ko` | `bsnsDivNm` | string | 업무구분명 (물품, 용역, 공사, 외자) |
+| `contract_method_ko` | `cntrctCnclsMthdNm` | string | 계약체결방법 (일반경쟁, 제한경쟁, 지명경쟁, 수의계약) |
+| `contract_status_ko` | `cntrctCnclsSttusNm`| string | 계약체결상태 |
+| `award_method_ko` | `bidwinrDcsnMthdNm` | string | 낙찰자결정방법 (적격심사, 소액수의, 최저가낙찰제 등) |
+| `award_lower_limit_rate` | `sucsfbidLwltRate` | float64 | 낙찰하한율 (%) |
+| `is_joint_contract` | `cmmnCntrctYn` | boolean | 공동수급(공동도급) 허용 여부 |
+| `is_electronic_bid` | `elctrnBidYn` | boolean | 전자입찰 여부 |
+| `is_international_bid` | `intrntnlBidYn` | boolean | 국제입찰 여부 |
+| `is_pps_notice` | `ppsNtceYn` | boolean | 조달청 자체발주 공고 여부 |
+| `is_region_limited` | `rgnLmtYn` | boolean | 지역제한입찰 여부 |
+| `is_industry_limited` | `indstrytyLmtYn` | boolean | 업종제한입찰 여부 |
 
 ---
 
-## 2. Bid Results & Awards (`awards`)
+## 2. 개찰결과 및 투찰내역 (`awards`)
 
-> [!NOTE]
-> The live KONEPS OpenAPI operation `getDataSetOpnStdScsbidInfo` provides bidder-level resolution (each row represents a bidder submission for an opened tender, or tender status if failed/unbid).
+- **원천 API 오퍼레이션**: `getDataSetOpnStdScsbidInfo`
+- **무손실 중복제거 식별키**: `["bidNtceNo", "bidNtceOrd", "bidprcCorpBizrno", "opengRank", "dqlfctnRsn", "bidprcAmt", "bidprcTm"]`
+- **의도된 그레인**: 특정 공고·차수 내 개별 기업의 1회 입찰 투찰 제출 건 (`bidder_submissions`).
 
-| Canonical English Column | Source API Field (Korean) | Data Type | Description |
+| 표준 영문 컬럼명 | 원천 API 필드 (한글) | 데이터 타입 | 설명 및 비즈니스 정의 |
 | :--- | :--- | :--- | :--- |
-| `bid_notice_no` | `bidNtceNo` | string | Associated tender announcement number |
-| `bid_notice_round` | `bidNtceOrd` | string | Tender revision sequence |
-| `bid_title_ko` | `bidNtceNm` | string | Original Korean title |
-| `business_div_name_ko` | `bsnsDivNm` | string | Business division (물품, 외자, 공사, 용역) |
-| `contract_method_ko` | `cntrctCnclsMthdNm` | string | Contract procurement method |
-| `award_method_ko` | `bidwinrDcsnMthdNm` | string | Winning bidder determination method |
-| `notice_agency_code` | `ntceInsttCd` | string | Notice agency identifier |
-| `notice_agency_name_ko` | `ntceInsttNm` | string | Notice agency name |
-| `demand_agency_code` | `dmndInsttCd` | string | Demand agency identifier |
-| `demand_agency_name_ko` | `dmndInsttNm` | string | Demand agency name |
-| `opening_date` | `opengDate` | string / date | Bid opening date |
-| `opening_rank` | `opengRank` | float64 | Opening evaluation rank (1 = first rank) |
-| `bidder_business_registration_no` | `bidprcCorpBizrno` | string | Bidding company's 10-digit business registration number |
-| `bidder_name_ko` | `bidprcCorpNm` | string | Bidding company name |
-| `bid_amount_krw` | `bidprcAmt` | float64 | Submitted bid amount (KRW) |
-| `bid_rate` | `bidprcRt` | float64 | Bid rate relative to reference price (%) |
-| `bid_submission_date` | `bidprcDate` | string / date | Bid submission date |
-| `is_selected_winner` | `sucsfYn` | boolean | True if this bidder was selected as winner |
-| `disqualification_reason_ko` | `dqlfctnRsn` | string | Disqualification reason (e.g. 예정가격초과, 자격미달 등) |
-| `award_amount_krw` | `fnlSucsfAmt` | float64 | Final winning bid amount (KRW) |
-| `award_rate` | `fnlSucsfRt` | float64 | Final winning bid rate (%) |
-| `award_date` | `fnlSucsfDate` | string / date | Final award date |
-| `winner_name_ko` | `fnlSucsfCorpNm` | string | Final winning company name |
-| `winner_business_registration_no` | `fnlSucsfCorpBizrno` | string | Final winner business registration number |
-| `estimated_price_krw` | `presmptPrce` | float64 | Estimated price (KRW) |
-| `scheduled_price_krw` | `rsrvtnPrce` | float64 | Final scheduled price (KRW) |
-| `base_amount_krw` | `bssAmt` | float64 | Base reference amount (KRW) |
+| `bid_notice_no` | `bidNtceNo` | string | 연계 입찰공고번호 |
+| `bid_notice_round` | `bidNtceOrd` | string | 공고 차수 |
+| `bid_title_ko` | `bidNtceNm` | string | 공고명 |
+| `business_div_name_ko` | `bsnsDivNm` | string | 업무구분 (물품, 외자, 공사, 용역) |
+| `contract_method_ko` | `cntrctCnclsMthdNm` | string | 계약체결방법 |
+| `award_method_ko` | `bidwinrDcsnMthdNm` | string | 낙찰자결정방법 |
+| `notice_agency_code` | `ntceInsttCd` | string | 발주기관코드 |
+| `notice_agency_name_ko` | `ntceInsttNm` | string | 발주기관명 |
+| `demand_agency_code` | `dmndInsttCd` | string | 수요기관코드 |
+| `demand_agency_name_ko` | `dmndInsttNm` | string | 수요기관명 |
+| `opening_date` | `opengDate` | string / date | 개찰일자 (`YYYY-MM-DD`) |
+| `opening_rank` | `opengRank` | float64 | 개찰 순위 (1순위가 예정가격 대비 최적투찰자) |
+| `bidder_business_registration_no` | `bidprcCorpBizrno` | string | 투찰기업 10자리 사업자등록번호 |
+| `bidder_name_ko` | `bidprcCorpNm` | string | 투찰기업 상호명 |
+| `bid_amount_krw` | `bidprcAmt` | float64 | 제출된 입찰 투찰금액 (원) |
+| `bid_rate` | `bidprcRt` | float64 | 예정가격 대비 투찰률 (%) |
+| `bid_submission_date` | `bidprcDate` | string / date | 투찰일자 |
+| `bid_submission_time` | `bidprcTm` | string | 투찰시각 (`HH:MM`) |
+| `is_selected_winner` | `sucsfYn` | boolean | 최종 낙찰사 선정 여부 |
+| `disqualification_reason_ko` | `dqlfctnRsn` | string | 심사 탈락사유 (예: 예정가격초과, 자격미달 등) |
+| `award_amount_krw` | `fnlSucsfAmt` | float64 | 최종 확정 낙찰금액 (원) |
+| `award_rate` | `fnlSucsfRt` | float64 | 최종 낙찰률 (%) |
+| `award_date` | `fnlSucsfDate` | string / date | 최종 낙찰결정일자 |
+| `winner_name_ko` | `fnlSucsfCorpNm` | string | 최종 낙찰기업 상호 |
+| `winner_business_registration_no` | `fnlSucsfCorpBizrno` | string | 최종 낙찰기업 사업자등록번호 |
+| `estimated_price_krw` | `presmptPrce` | float64 | 추정가격 (원) |
+| `scheduled_price_krw` | `rsrvtnPrce` | float64 | 복수예가 추첨을 통해 확정된 최종 예정가격 (원) |
+| `base_amount_krw` | `bssAmt` | float64 | 기초금액 (원) |
 
 ---
 
-## 3. Contracts (`contracts`)
+## 3. 계약내역 (`contracts`)
 
-| Canonical English Column | Source API Field (Korean) | Data Type | Description |
+- **원천 API 오퍼레이션**: `getDataSetOpnStdCntrctInfo`
+- **기본 식별키 (Candidate PK)**: `unified_contract_no` (`untyCntrctNo`, 100% 고유성 실증 완료)
+
+| 표준 영문 컬럼명 | 원천 API 필드 (한글) | 데이터 타입 | 설명 및 비즈니스 정의 |
 | :--- | :--- | :--- | :--- |
-| `unified_contract_no` | `untyCntrctNo` | string | National unified contract identifier |
-| `contract_no` | `cntrctNo` | string | Primary contract number |
-| `contract_round` | `cntrctOrd` | string | Contract modification / round sequence |
-| `contract_title_ko` | `cntrctNm` | string | Official contract title |
-| `contract_date` | `cntrctCnclsDate` | string / date | Date contract was concluded (`YYYY-MM-DD`) |
-| `contract_method_ko` | `cntrctCnclsMthdNm` | string | Contract conclusion method (수간, 일반경쟁 등) |
-| `contract_amount_krw` | `cntrctAmt` | float64 | Signed contract amount for current installment (KRW) |
-| `total_contract_amount_krw`| `ttalCntrctAmt` | float64 | Cumulative total contract value (KRW) |
-| `contract_agency_code` | `cntrctInsttCd` | string | Contracting agency code |
-| `contract_agency_name_ko` | `cntrctInsttNm` | string | Contracting agency name |
-| `demand_agency_code` | `dmndInsttCd` | string | Demand agency code |
-| `demand_agency_name_ko` | `dmndInsttNm` | string | Demand agency name |
-| `contractor_business_registration_no` | `rprsntCorpBizrno` | string | Contractor business registration number |
-| `contractor_name_ko` | `rprsntCorpNm` | string | Contractor business name |
-| `bid_notice_no` | `bidNtceNo` | string | Associated tender notice number |
-| `bid_notice_round` | `bidNtceOrd` | string | Associated tender notice round |
-| `contract_period` | `cntrctPrd` | string | Contract duration/period |
-| `is_joint_contract` | `cmmnCntrctYn` | boolean | Joint contracting indicator |
-| `is_domestic_corp` | `dmstcCorpYn` | boolean | Domestic corporation indicator |
+| `unified_contract_no` | `untyCntrctNo` | string | 정부 통합계약번호 (국가 표준 고유 식별키) |
+| `contract_no` | `cntrctNo` | string | 기관별 원천 계약번호 |
+| `contract_round` | `cntrctOrd` | string | 계약 변경/차수 번호 |
+| `contract_title_ko` | `cntrctNm` | string | 계약 체결명 |
+| `contract_date` | `cntrctCnclsDate` | string / date | 계약 체결일자 (`YYYY-MM-DD`) |
+| `contract_method_ko` | `cntrctCnclsMthdNm` | string | 계약체결방법 (수의계약, 일반경쟁 등) |
+| `contract_amount_krw` | `cntrctAmt` | float64 | 금차 체결 계약금액 (원) |
+| `total_contract_amount_krw`| `ttalCntrctAmt` | float64 | 장기계약 시 총 계약금액 (원) |
+| `contract_agency_code` | `cntrctInsttCd` | string | 계약체결기관 7자리 표준코드 |
+| `contract_agency_name_ko` | `cntrctInsttNm` | string | 계약체결기관명 |
+| `demand_agency_code` | `dmndInsttCd` | string | 수요기관코드 |
+| `demand_agency_name_ko` | `dmndInsttNm` | string | 수요기관명 |
+| `contractor_business_registration_no` | `rprsntCorpBizrno` | string | 수주계약기업 사업자등록번호 |
+| `contractor_name_ko` | `rprsntCorpNm` | string | 수주계약기업 상호 |
+| `bid_notice_no` | `bidNtceNo` | string | 연계 입찰공고번호 (미연계 시 결측) |
+| `bid_notice_round` | `bidNtceOrd` | string | 연계 입찰공고차수 |
+| `contract_period` | `cntrctPrd` | string | 계약 이행기간 |
+| `is_joint_contract` | `cmmnCntrctYn` | boolean | 공동계약 체결 여부 |
+| `is_domestic_corp` | `dmstcCorpYn` | boolean | 국내기업 여부 |
 
 ---
 
-## 4. Bidder Outcome Report (`bidder_outcomes`)
+## 4. 포털 투찰보고서 (`bidder_outcomes`)
 
-| Canonical English Column | Source Column (Korean) | Data Type | Description |
+- **인제스트 스크립트**: `scripts/ingest_bidder_report.py`
+- **역할**: 보조 데이터 강화 및 교차 검증용 선택적 소스
+
+| 표준 영문 컬럼명 | 원천 한글 컬럼 | 데이터 타입 | 설명 및 비즈니스 정의 |
 | :--- | :--- | :--- | :--- |
-| `procurement_channel` | `조달방식` | string | Procurement channel (e.g. 자체조달 vs 중앙조달) |
-| `business_type` | `업무구분` | string | Business category (물품, 공사, 용역) |
-| `bidding_method` | `입찰방법` | string | Bidding mechanism (전자입찰, 직찰 등) |
-| `bid_notice_no` | `입찰공고번호` | string | Tender notice number |
-| `bid_notice_round` | `입찰공고차수` | string | Notice revision round |
-| `bid_title_ko` | `공고명` | string | Tender notice title |
-| `opening_rank` | `개찰순위` | int64 / float64 | Opening bid rank (1 = closest to scheduled threshold) |
-| `is_selected_winner` | `낙찰자선정여부` | boolean | True if company was officially selected as winner |
-| `bidder_name_ko` | `업체명` | string | Bidding company name |
-| `bidder_business_registration_no`| `업체사업자등록번호` | string | Bidding company business registration number |
-| `bid_amount_krw` | `투찰금액` | float64 | Submitted bid amount (KRW) |
-| `bid_rate` | `투찰율` | float64 | Submitted bid rate relative to reference price (%) |
-| `is_disqualified` | `부적격여부` | boolean | True if bid was disqualified during opening / evaluation |
-| `disqualification_reason_ko`| `입찰부적격사유` | string | Reason stated for disqualification |
-| `current_contract_amount_krw`| `금차계약금액` | float64 | Executed contract amount for this term (KRW) |
-| `total_contract_amount_krw` | `총계약금액` | float64 | Cumulative contracted amount (KRW) |
+| `procurement_channel` | `조달방식` | string | 조달방식 (자체조달, 중앙조달 등) |
+| `business_type` | `업무구분` | string | 업무구분 (물품, 공사, 용역) |
+| `bidding_method` | `입찰방법` | string | 입찰방법 (전자입찰, 직찰 등) |
+| `bid_notice_no` | `입찰공고번호` | string | 입찰공고번호 |
+| `bid_notice_round` | `입찰공고차수` | string | 공고차수 |
+| `bid_title_ko` | `공고명` | string | 공고명 |
+| `opening_rank` | `개찰순위` | float64 | 개찰순위 |
+| `is_selected_winner` | `낙찰자선정여부` | boolean | 최종 낙찰자 선정 여부 |
+| `bidder_name_ko` | `업체명` | string | 투찰기업 상호명 |
+| `bidder_business_registration_no`| `업체사업자등록번호` | string | 투찰기업 사업자등록번호 |
+| `bid_amount_krw` | `투찰금액` | float64 | 투찰금액 (원) |
+| `bid_rate` | `투찰율` | float64 | 사정률 대비 투찰률 (%) |
+| `is_disqualified` | `부적격여부` | boolean | 적격심사 탈락 여부 |
+| `disqualification_reason_ko`| `입찰부적격사유` | string | 탈락사유 |
+| `bidder_sigungu_ko` | `업체소재시군구` | string | 기업 소재 기초지자체 (포털 보고서 전용 필드) |
+| `current_contract_amount_krw`| `금차계약금액` | float64 | 금차 계약금액 (원) |
+| `total_contract_amount_krw` | `총계약금액` | float64 | 총 계약금액 (원) |
 
 ---
 
-## 5. Candidate Gold ML Feature Columns (TBD / Empirical Stage)
+## 5. 후보 머신러닝 피처 컬럼 (Candidate ML Feature Columns)
 
-Columns planned for future enrichment after join cardinality verification:
-
-- `bidder_count` (TBD: Calculated from distinct bidders per tender)
-- `market_hhi` (TBD: Herfindahl-Hirschman concentration index per industry code)
-- `supplier_historical_win_rate` (TBD: Time-safe cumulative win rate before tender date)
-- `scheduled_price_ratio` (TBD: `scheduled_price_krw / base_amount_krw`)
-- `bid_price_ratio` (TBD: `bid_amount_krw / estimated_price_krw`)
+조인 카디널리티 검증 및 관계형 브릿지 구축 후 생성될 2차 파생 피처:
+- `bidder_count`: 공고당 유효 투찰 기업 수 (경쟁 강도 지표)
+- `market_hhi`: 업종 및 발주기관별 시장 집중도 (허핀달-허쉬만 지수)
+- `supplier_historical_win_rate`: 해당 공고 이전 시점까지의 공급기업 누적 수주 성공률 (누수 방지 시계열 처리)
+- `scheduled_price_ratio`: 기초금액 대비 예정가격 사정률 (`scheduled_price_krw / base_amount_krw`)
+- `bid_price_ratio`: 추정가격 대비 투찰금액 비율 (`bid_amount_krw / estimated_price_krw`)

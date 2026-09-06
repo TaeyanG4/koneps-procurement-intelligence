@@ -24,9 +24,9 @@ Why recent 12 months first:
 - verify join cardinality
 - create first EDA/ML notebooks quickly
 
-*Status*: 1-month pilot benchmark (2026-08) completed (2.26M raw rows, 2.25M Parquet rows). Empirical volumes, rates, and pagination verified.
+*Status*: 1-month pilot benchmark (2026-08) completed and audited (2.26M raw rows, 2.25M Parquet rows). Empirical volumes, lossless deduplication grain, and relational join specification (`docs/RELATIONAL_MODEL.md`) finalized.
 
-## Phase 2 — Join design (Next Milestone: Cross-feed join cardinality design)
+## Phase 2 — Join design & Relational Implementation (Next Milestone: Implement relational curated tables on August pilot)
 
 Candidate grain:
 

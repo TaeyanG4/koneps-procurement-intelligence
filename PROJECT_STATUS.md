@@ -35,10 +35,13 @@ This document tracks the implementation progress and development milestones for 
 ### Data Collection & Empirical Validation (Operational Milestones)
 - [x] Live API authentication verified with valid `DATA_GO_KR_SERVICE_KEY`
 - [x] 1-day live collection smoke test verified (`bids`, `awards`, `contracts`)
-- [x] 1-month benchmark dataset collected (2026-08: 2,268,948 raw rows, 2,255,721 Parquet rows across bids, contracts, awards - see `docs/PILOT_2026_08.md`)
+- [x] 1-month benchmark dataset collected (2026-08: 2,268,948 raw rows, 2,256,788 Parquet rows across bids, contracts, awards - see `docs/PILOT_2026_08.md`)
+- [x] Pilot audit corrected (event-date filtering, period contamination removed, single source of truth `pilot_2026_08_metrics.json`)
+- [x] Deduplication grain validated (lossless candidate key with `bidprcAmt` + `bidprcTm` preserving 1,067 distinct multi-lot submissions)
+- [x] August-only cross-feed cardinality validated (Tender 1:N Bidder Submissions, 1:0..N Award Outcomes, 1:0..N Contracts, 100% unique `untyCntrctNo`)
+- [x] Relational model specification created (`docs/RELATIONAL_MODEL.md` & `docs/RELATIONAL_MODEL.en.md`)
+- [ ] Relational curated tables implemented on August pilot (`tenders`, `bidder_submissions`, `award_outcomes`, `contracts`, `bridge`)
 - [ ] 1-year historical MVP collected
-- [ ] Official bidder outcome report export ingested into `data/processed/bidder_outcomes/`
-- [ ] Empirical key and cardinality validation executed (Tender 1:N Bidder, 1:1 Award, 1:N Contract)
-- [ ] Procurement master dataset built without row duplication
+- [ ] Official bidder outcome report export ingested into `data/processed/bidder_outcomes/` (optional enrichment role)
 - [ ] Leak-free ML feature tables generated (competition metrics, win rate history, agency price variance)
 - [ ] Curated research dataset v1 packaged, documented, and published with baseline EDA notebook

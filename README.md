@@ -283,9 +283,19 @@ koneps-procurement-intelligence/
 │   └── test_text_integrity.py   # 인코딩 깨짐(?/모지바케) 방지 테스트
 │
 ├── docs/
-│   ├── DATA_SOURCES.md          # 공공데이터 출처 및 라이선스 가이드
-│   ├── DATA_DICTIONARY.md       # 표준 데이터 사전 및 영문/한글 매핑
-│   └── ARCHITECTURE.md          # 시스템 아키텍처 및 무결성 원칙
+│   ├── ARCHITECTURE.md          # 시스템 아키텍처 및 무결성 원칙 (한국어)
+│   ├── ARCHITECTURE.en.md       # 시스템 아키텍처 및 무결성 원칙 (English)
+│   ├── DATA_SOURCES.md          # 공공데이터 출처 및 라이선스 가이드 (한국어)
+│   ├── DATA_SOURCES.en.md       # 공공데이터 출처 및 라이선스 가이드 (English)
+│   ├── DATA_DICTIONARY.md       # 표준 데이터 사전 및 영문/한글 매핑 (한국어)
+│   ├── DATA_DICTIONARY.en.md    # 표준 데이터 사전 및 영문/한글 매핑 (English)
+│   ├── LIVE_VALIDATION.md       # 1일 실시간 API 스모크 테스트 보고서 (한국어)
+│   ├── LIVE_VALIDATION.en.md    # 1일 실시간 API 스모크 테스트 보고서 (English)
+│   ├── PILOT_2026_08.md         # 2026-08 1개월 파일럿 실증 감사 보고서 (한국어)
+│   ├── PILOT_2026_08.en.md      # 2026-08 1개월 파일럿 실증 감사 보고서 (English)
+│   ├── RELATIONAL_MODEL.md      # 관계형 조인 모델 규격서 (한국어)
+│   ├── RELATIONAL_MODEL.en.md   # 관계형 조인 모델 규격서 (English)
+│   └── generated/               # 프로젝트 자동 생성 DOCX 문서 아카이브
 │
 ├── .github/
 │   └── workflows/
@@ -302,22 +312,37 @@ koneps-procurement-intelligence/
 
 ---
 
-## 12. 스키마 및 주요 지표
+## 12. 기술 문서 색인 (Documentation Index)
+
+본 프로젝트의 모든 핵심 설계, 데이터 사전 및 실증 보고서는 한국어 및 영문 Markdown과 생성된 DOCX 문서로 제공됩니다:
+
+| 문서 구분 | 한국어 Markdown | 영문 Markdown | 한국어 DOCX | 영문 DOCX |
+| :--- | :--- | :--- | :--- | :--- |
+| **시스템 아키텍처** | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | [ARCHITECTURE.en.md](docs/ARCHITECTURE.en.md) | [ARCHITECTURE.ko.docx](docs/generated/ARCHITECTURE.ko.docx) | [ARCHITECTURE.en.docx](docs/generated/ARCHITECTURE.en.docx) |
+| **데이터 소스 및 라이선스** | [DATA_SOURCES.md](docs/DATA_SOURCES.md) | [DATA_SOURCES.en.md](docs/DATA_SOURCES.en.md) | [DATA_SOURCES.ko.docx](docs/generated/DATA_SOURCES.ko.docx) | [DATA_SOURCES.en.docx](docs/generated/DATA_SOURCES.en.docx) |
+| **표준 데이터 사전** | [DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md) | [DATA_DICTIONARY.en.md](docs/DATA_DICTIONARY.en.md) | [DATA_DICTIONARY.ko.docx](docs/generated/DATA_DICTIONARY.ko.docx) | [DATA_DICTIONARY.en.docx](docs/generated/DATA_DICTIONARY.en.docx) |
+| **실 API 검증 보고서** | [LIVE_VALIDATION.md](docs/LIVE_VALIDATION.md) | [LIVE_VALIDATION.en.md](docs/LIVE_VALIDATION.en.md) | [LIVE_VALIDATION.ko.docx](docs/generated/LIVE_VALIDATION.ko.docx) | [LIVE_VALIDATION.en.docx](docs/generated/LIVE_VALIDATION.en.docx) |
+| **2026-08 파일럿 실증 감사** | [PILOT_2026_08.md](docs/PILOT_2026_08.md) | [PILOT_2026_08.en.md](docs/PILOT_2026_08.en.md) | [PILOT_2026_08.ko.docx](docs/generated/PILOT_2026_08.ko.docx) | [PILOT_2026_08.en.docx](docs/generated/PILOT_2026_08.en.docx) |
+| **관계형 모델 규격서** | [RELATIONAL_MODEL.md](docs/RELATIONAL_MODEL.md) | [RELATIONAL_MODEL.en.md](docs/RELATIONAL_MODEL.en.md) | [RELATIONAL_MODEL.ko.docx](docs/generated/RELATIONAL_MODEL.ko.docx) | [RELATIONAL_MODEL.en.docx](docs/generated/RELATIONAL_MODEL.en.docx) |
+
+---
+
+## 13. 스키마 및 주요 지표
 
 본 파이프라인은 공공데이터포털의 방대한 한글 행정 필드를 분석 친화적인 표준 영문 컬럼으로 매핑합니다:
 
 | 데이터셋 | 기본 키 (Primary Key) | 주요 분석 컬럼 |
 | :--- | :--- | :--- |
-| **입찰공고 (`bids`)** | `bid_notice_no`, `bid_notice_ord` | `budget_amount`, `estimated_price`, `bid_method`, `contract_method`, `is_re_bid` |
-| **개찰결과 (`awards`)** | `bid_notice_no`, `bid_notice_ord` | `award_amount`, `award_rate`, `scheduled_price`, `bidder_count`, `is_failed_bid` |
-| **계약내역 (`contracts`)** | `contract_no`, `contract_ord` | `contract_amount`, `contract_date`, `agency_name`, `supplier_name`, `contract_method` |
-| **투찰보고서 (`bidder_outcomes`)** | `bid_notice_no`, `business_reg_no` | `bid_amount`, `bid_rate`, `rank`, `is_successful_bid`, `disqualification_reason` |
+| **입찰공고 (`bids`)** | `bid_notice_no`, `bid_notice_round` | `budget_amount`, `estimated_price`, `bid_method`, `contract_method`, `is_re_bid` |
+| **개찰결과 (`awards`)** | `bid_notice_no`, `bid_notice_round`, `bidder_business_registration_no`, `bid_amount_krw`, `bid_submission_time`, `opening_rank` | `bid_amount_krw`, `bid_rate`, `scheduled_price`, `award_amount_krw`, `is_selected_winner` |
+| **계약내역 (`contracts`)** | `unified_contract_no` | `contract_amount`, `contract_date`, `agency_name`, `supplier_name`, `contract_method` |
+| **투찰보고서 (`bidder_outcomes`)** | `bid_notice_no`, `bidder_business_registration_no` | `bid_amount`, `bid_rate`, `opening_rank`, `is_selected_winner`, `disqualification_reason` |
 
 상세한 데이터 타입, 한글 원천 컬럼명, 결측치 허용 여부는 [DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md)를 참고하십시오.
 
 ---
 
-## 13. 캐글 데이터셋 패키징 가이드
+## 14. 캐글 데이터셋 패키징 가이드
 
 1. **데이터셋 구성**:
    - `bids.parquet`, `awards.parquet`, `contracts.parquet`, `bidder_outcomes.parquet`로 구성된 스타/스노우플레이크 스키마 제공.
@@ -337,7 +362,7 @@ koneps-procurement-intelligence/
 
 ---
 
-## 14. 분석 및 머신러닝 활용 아이디어
+## 15. 분석 및 머신러닝 활용 아이디어
 
 - **입찰 낙찰률 예측 (Regression)**: 공고 배정예산, 업종 분류, 발주 시기, 수요기관 특성을 피처로 활용한 최종 낙찰률(`award_rate`) 예측.
 - **유찰 조기 경보 모델 (Classification)**: 입찰 참가 자격의 까다로움 및 공고 기간을 분석하여 유찰(`is_failed_bid`) 가능성을 사전에 감지.
@@ -349,18 +374,16 @@ koneps-procurement-intelligence/
 
 ---
 
-## 15. 보안 및 데이터 거버넌스 정책
+## 16. 보안 및 데이터 거버넌스 정책
 
 - **인증키 보안**: 서비스 인증키는 절대 Git에 커밋하지 않으며, 환경 변수(`.env`)로만 관리됩니다.
 - **코드 중심 저장소**: 대용량 데이터 파일은 `.gitignore`에 의해 제외되며, 깃허브에는 소스 코드와 설정만 추적됩니다.
 - **개인정보 및 식별자 보호**: 공공 데이터에 포함된 대표자명 및 사업자등록번호는 공개 데이터셋 생성 시 필요에 따라 해시(SHA-256) 가명화 처리를 적용합니다.
 - **라이선스 및 재배포 준수**: 각 원천 데이터의 이용조건은 공공데이터포털 및 나라장터의 해당 서비스 페이지에 표시된 공공누리(KOGL) 등 개별 이용허락범위를 따릅니다. Kaggle 재배포 전 데이터 소스별 이용조건을 다시 확인합니다.
 
-
-
 ---
 
-## 16. 구현 및 검증 현황
+## 17. 구현 및 검증 현황
 
 | 컴포넌트 | 구현 상태 | 검증 내용 |
 | :--- | :--- | :--- |
@@ -371,19 +394,20 @@ koneps-procurement-intelligence/
 | **데이터 품질 검사 (`quality.py`, `quality_check.py`)** | 구현 완료 | 정상 및 이상치 데이터프레임 프로파일링 및 경계 검사 테스트 통과. |
 | **CI 파이프라인 (`ci.yml`)** | 구현 완료 | GitHub Actions 기반 Python 3.11 및 3.12 전 자동 테스트 통과. |
 | **실 API 인증 및 1일 스모크 테스트** | 검증 완료 | 2026-09-01 기준 bids, awards, contracts 전 피드 1일 라이브 수집 및 Parquet 변환 검증 완료. |
-| **1개월 벤치마크 수집 및 파일럿 검증** | 검증 완료 | 2026-08-01 ~ 2026-08-31 전 피드(2,268,948건 원천 수집, 2,255,721건 Parquet 변환) 및 무결성 감사 완료 ([PILOT_2026_08.md](docs/PILOT_2026_08.md) 참조). |
-| **피드 간 조인 카디널리티 설계** | 다음 마일스톤 | 입찰공고(1) : 개찰결과(N) : 계약내역(N) 간 식별키 정렬 및 브릿지 테이블 설계. |
-| **과거 1년 치 라이브 수집** | 계획됨 | 카디널리티 및 스키마 확정 후 단계적 수집 수행 예정. |
-| **관계형 마스터 조인 데이터셋 구축** | 계획됨 | 공고 $\rightarrow$ 투찰 $\rightarrow$ 개찰 $\rightarrow$ 계약 릴레이션 결합 테이블 생성 예정. |
+| **1개월 벤치마크 수집 및 파일럿 검증** | 검증 완료 | 2026-08-01 ~ 2026-08-31 전 피드(2,268,948건 원천 수집, 2,256,788건 Parquet 변환) 및 무결성 감사 완료 ([PILOT_2026_08.md](docs/PILOT_2026_08.md) 참조). |
+| **파일럿 감사 보정 및 관계형 조인 모델** | 검증 완료 | 기간 오염 제거, 무손실 투찰 그레인 확정, [RELATIONAL_MODEL.md](docs/RELATIONAL_MODEL.md) 규격화 완료. |
+| **관계형 큐레이티드 테이블 구현 (August Pilot)** | 다음 마일스톤 | 8월 파일럿 기반 `tenders`, `bidder_submissions`, `award_outcomes`, `contracts`, `bridge` 물리 테이블 생성. |
+| **과거 1년 치 라이브 수집** | 계획됨 | 관계형 모델 검증 후 대용량 수집 수행 예정. |
 | **캐글 연구 데이터셋 v1 배포** | 계획됨 | 데이터 카드 및 베이스라인 탐색적 데이터 분석(EDA) 노트북 공개 예정. |
 
 ---
 
-## 17. 로드맵 및 향후 과제
+## 18. 로드맵 및 향후 과제
 
 1. ~~**실제 API 1일 스모크 테스트 수행**~~: 완료 (2026-09-01 기준 3개 피드 전수 통과).
 2. ~~**1개월 벤치마크 데이터셋 수집 및 감사**~~: 완료 (2026-08 기준 226만 건 수집 및 [PILOT_2026_08.md](docs/PILOT_2026_08.md) 보고서 발행).
-3. **피드 간 조인 카디널리티 설계 (Cross-feed join cardinality design)**: Tender(1) : Bidder(N) : Award(1) : Contract(N) 관계 검증 및 정합성 설계.
-4. **1년 MVP 수집 및 포털 투찰보고서 연계**: 과거 1년 치 대용량 수집 및 참가 기업 상세 투찰 내역 수집.
-5. **마스터 데이터셋 구축**: 누수 없는 머신러닝 피처 엔지니어링 파이프라인 완성.
-6. **Kaggle 연구 데이터셋 v1 공개**: 국제 데이터 사이언스 커뮤니티를 위한 데이터 카드, 영문 가이드 및 스타터 노트북 제공.
+3. ~~**파일럿 감사 보정 및 관계형 조인 모델 수립**~~: 완료 ([RELATIONAL_MODEL.md](docs/RELATIONAL_MODEL.md) 확정).
+4. **관계형 큐레이티드 테이블 구현 (August Pilot)**: 8월 실데이터 대상 엔터티 테이블 및 브릿지 생성.
+5. **1년 MVP 수집 및 포털 투찰보고서 연계**: 과거 1년 치 대용량 수집 및 참가 기업 상세 투찰 내역 수집.
+6. **마스터 데이터셋 구축**: 누수 없는 머신러닝 피처 엔지니어링 파이프라인 완성.
+7. **Kaggle 연구 데이터셋 v1 공개**: 국제 데이터 사이언스 커뮤니티를 위한 데이터 카드, 영문 가이드 및 스타터 노트북 제공.

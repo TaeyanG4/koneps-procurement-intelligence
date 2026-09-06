@@ -1,5 +1,7 @@
 # KONEPS 공공데이터포털 실시간 API 검증 보고서
 
+**한국어** | [English](LIVE_VALIDATION.en.md)
+
 본 문서는 조달청 나라장터 표준 공공데이터 API(`PubDataOpnStdService` v1.2)에 대한 실시간 연동 검증 및 1일치(`2026-09-01`) 스모크 테스트 수집·정제·품질 검증 결과를 기록한 공식 기술 보고서입니다.
 
 ---

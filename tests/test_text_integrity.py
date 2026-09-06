@@ -113,3 +113,121 @@ def test_python_version_and_metadata_consistency():
     assert "3.11" in readme_en and "3.12" in readme_en
 
 
+def test_markdown_language_pairs_exist():
+    """Ensure all public documentation exists as paired Korean (.md) and English (.en.md) files."""
+    pairs = [
+        ("README.md", "README.en.md"),
+        ("docs/ARCHITECTURE.md", "docs/ARCHITECTURE.en.md"),
+        ("docs/DATA_SOURCES.md", "docs/DATA_SOURCES.en.md"),
+        ("docs/DATA_DICTIONARY.md", "docs/DATA_DICTIONARY.en.md"),
+        ("docs/LIVE_VALIDATION.md", "docs/LIVE_VALIDATION.en.md"),
+        ("docs/PILOT_2026_08.md", "docs/PILOT_2026_08.en.md"),
+        ("docs/RELATIONAL_MODEL.md", "docs/RELATIONAL_MODEL.en.md"),
+    ]
+    missing = []
+    for ko_rel, en_rel in pairs:
+        ko_path = REPO_ROOT / ko_rel
+        en_path = REPO_ROOT / en_rel
+        if not ko_path.is_file() or ko_path.stat().st_size == 0:
+            missing.append(str(ko_rel))
+        if not en_path.is_file() or en_path.stat().st_size == 0:
+            missing.append(str(en_rel))
+
+    assert not missing, f"Missing or empty documentation pair files: {missing}"
+
+
+def test_readme_and_doc_links_resolve():
+    """Ensure relative links in README and docs files resolve to existing files."""
+    import re
+
+    link_pattern = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+    broken_links = []
+
+    docs_to_check = [
+        REPO_ROOT / "README.md",
+        REPO_ROOT / "README.en.md",
+    ] + list((REPO_ROOT / "docs").glob("*.md"))
+
+    for doc_file in docs_to_check:
+        if not doc_file.is_file():
+            continue
+        content = doc_file.read_text(encoding="utf-8")
+        for match in link_pattern.finditer(content):
+            target = match.group(2).strip()
+            # Ignore web links, mailto, and pure in-page anchors
+            if target.startswith(("http://", "https://", "mailto:")) or target.startswith("#"):
+                continue
+            # Strip in-page anchor e.g. target#section
+            target_clean = target.split("#")[0].strip()
+            if not target_clean:
+                continue
+            # Resolve relative to doc_file
+            target_path = (doc_file.parent / target_clean).resolve()
+            if not target_path.exists():
+                broken_links.append(
+                    f"{doc_file.relative_to(REPO_ROOT)}: '{target}' -> {target_clean} (not found)"
+                )
+
+    assert not broken_links, f"Found broken relative links:\n" + "\n".join(broken_links)
+
+
+def test_no_broken_arrows_or_separators():
+    """Ensure no text files contain corrupted question-mark arrows (' ? ') or broken separators."""
+    corrupted = []
+    for path in get_tracked_text_files():
+        if path.name == "test_text_integrity.py":
+            continue
+        content = path.read_text(encoding="utf-8")
+        if " ? " in content:
+            corrupted.append(f"{path.relative_to(REPO_ROOT)}: Contains ' ? '")
+
+    assert not corrupted, f"Found corrupted question-mark separators in: {corrupted}"
+
+
+def test_legitimate_url_question_marks_remain_valid():
+    """Verify that legitimate query parameter question marks in URLs or regexes remain intact."""
+    data_sources = (REPO_ROOT / "docs" / "DATA_SOURCES.md").read_text(encoding="utf-8")
+    assert "data.go.kr" in data_sources
+    assert "?" in data_sources or "?" in (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+
+
+def test_generated_docx_files_exist():
+    """Ensure all 12 project-authored DOCX files in docs/generated/ exist and are valid non-empty files."""
+    import zipfile
+
+    expected_docx = [
+        "ARCHITECTURE.ko.docx",
+        "ARCHITECTURE.en.docx",
+        "DATA_SOURCES.ko.docx",
+        "DATA_SOURCES.en.docx",
+        "DATA_DICTIONARY.ko.docx",
+        "DATA_DICTIONARY.en.docx",
+        "LIVE_VALIDATION.ko.docx",
+        "LIVE_VALIDATION.en.docx",
+        "PILOT_2026_08.ko.docx",
+        "PILOT_2026_08.en.docx",
+        "RELATIONAL_MODEL.ko.docx",
+        "RELATIONAL_MODEL.en.docx",
+    ]
+
+    gen_dir = REPO_ROOT / "docs" / "generated"
+    assert gen_dir.exists(), "docs/generated directory does not exist"
+
+    missing_or_invalid = []
+    for docx_name in expected_docx:
+        file_path = gen_dir / docx_name
+        if not file_path.is_file() or file_path.stat().st_size == 0:
+            missing_or_invalid.append(f"{docx_name} (missing or 0 bytes)")
+            continue
+        # DOCX is a zip file containing [Content_Types].xml
+        try:
+            with zipfile.ZipFile(file_path, "r") as zf:
+                if "[Content_Types].xml" not in zf.namelist():
+                    missing_or_invalid.append(f"{docx_name} (corrupt zip structure)")
+        except Exception as e:
+            missing_or_invalid.append(f"{docx_name} (zip error: {e})")
+
+    assert not missing_or_invalid, f"Issues with generated DOCX files: {missing_or_invalid}"
+
+
+

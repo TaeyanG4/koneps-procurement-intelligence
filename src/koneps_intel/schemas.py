@@ -6,7 +6,7 @@ from typing import Dict, List
 # Deduplication key candidates by feed
 DEDUPLICATION_KEYS: Dict[str, List[str]] = {
     "bids": ["bidNtceNo", "bidNtceOrd", "bidClsfcNo", "rbidNo"],
-    "awards": ["bidNtceNo", "bidNtceOrd", "bidprcCorpBizrno", "opengRank", "dqlfctnRsn"],
+    "awards": ["bidNtceNo", "bidNtceOrd", "bidprcCorpBizrno", "opengRank", "dqlfctnRsn", "bidprcAmt", "bidprcTm"],
     "contracts": ["untyCntrctNo", "cntrctNo", "cntrctOrd", "cntrctRefNo"],
     "bidder_outcomes": ["bid_notice_no", "bid_notice_round", "bidder_business_registration_no"],
 }
