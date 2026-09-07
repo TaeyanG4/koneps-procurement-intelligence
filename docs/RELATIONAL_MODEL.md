@@ -121,13 +121,15 @@ erDiagram
 
 ### 3.2 `bidder_submissions` (개별 기업 투찰 기록)
 - **개념**: 특정 입찰공고에 대해 참여 기업이 제출한 개별 투찰 내역.
-- **의도된 그레인 (Intended Grain)**: 특정 공고·차수 내 개별 기업의 1회 입찰 투찰 제출 건.
-- **기본 키 (Primary Key)**: `(bid_notice_no, bid_notice_round, bidder_supplier_id, bid_amount_krw, bid_submission_time, opening_rank)`
+- **원천 디듀플리케이션 키 vs 큐레이티드 PK 구분**:
+  - **원천 중복 제거 그레인 (Raw Deduplication Grain)**: `(bid_notice_no, bid_notice_round, bidder_biz_no, opening_rank, disqualification_reason_ko, bid_amount_krw, bid_submission_time)` — 원천 API 스냅샷의 후속 필드 갱신을 안전하게 병합하기 위한 7-컬럼 키 (중복 0건, 무손실 실증 완료).
+  - **큐레이티드 불변 제출 식별자 (Curated Submission Event)**: 개찰순위(`opening_rank`) 및 탈락사유는 투찰 시점이 아닌 개찰 후 생성되는 결과 속성이므로, 순수 투찰 이벤트 후보 키(Candidate A/B) 평가 시 비순위 투찰 건 등으로 인한 중복(각각 432건, 841건)이 존재함을 확인했습니다. 따라서 물리 큐레이티드 테이블 구현 시 무손실 원천 7-컬럼 그레인을 복합 키로 유지합니다.
+- **기본 키 (Primary Key)**: `(bid_notice_no, bid_notice_round, bidder_supplier_id, opening_rank, disqualification_reason_ko, bid_amount_krw, bid_submission_time)`
 - **외래 키 (Foreign Keys)**:
   - `(bid_notice_no, bid_notice_round)` $\rightarrow$ `tenders` (Nullable: False)
   - `bidder_supplier_id` $\rightarrow$ `suppliers.supplier_id` (Nullable: False)
 - **카디널리티**: `tenders (1) : bidder_submissions (N)` (공고당 1 ~ 9,675행, 평균 84.4행).
-- **검증 상태**: **LIVE VERIFIED** (2026년 8월 기준 2,107,948행 정규화 완료, 무손실 검증 통과).
+- **검증 상태**: **LIVE VERIFIED** (2026년 8월 기준 2,107,948행 무손실 정합성 확인).
 - **원천 피드**: `awards` (`getDataSetOpnStdScsbidInfo`)
 
 ---
@@ -136,6 +138,11 @@ erDiagram
 - **개념**: 적격심사 및 최종 낙찰 결정이 완료된 낙찰 결과.
 - **의도된 그레인 (Intended Grain)**: 특정 공고·차수 내 낙찰 건 (분할 발주 시 물품군별 1행).
 - **기본 키 (Primary Key)**: `(bid_notice_no, bid_notice_round, winner_supplier_id, award_amount_krw, bid_submission_time)`
+- **실증 메트릭 (2026년 8월 실측)**:
+  - 총 낙찰 행 수: **17,315행**
+  - 후보 키 고유 건수: **17,315건** (중복 건수: **0건**, 결측률: 0.0%)
+  - 검증 상태: **LIVE VERIFIED** (0 duplicates verified).
+  - 품목 식별자 한계: 공식 OpenAPI 개찰결과 피드에 물품분할번호(`bid_classification_no`)가 미제공되므로, 복수 낙찰 공고의 구분자로 투찰일시(`bid_submission_time`)를 활용합니다.
 - **외래 키 (Foreign Keys)**:
   - `(bid_notice_no, bid_notice_round)` $\rightarrow$ `tenders`
   - `winner_supplier_id` $\rightarrow$ `suppliers.supplier_id`
@@ -143,8 +150,7 @@ erDiagram
   - 0 낙찰자: 8,197건 (32.82% - 유찰 또는 심사 진행 중)
   - 1 낙찰자: 16,741건 (67.02% - 표준 단일 낙찰)
   - 2인 이상 복수 낙찰자: 40건 (0.16% - 다수 품목 분할계약 또는 공동이행)
-- **검증 상태**: **LIVE VERIFIED**
-- **원천 피드**: `awards` (`getDataSetOpnStdScsbidInfo` 중 `is_selected_winner == True` 또는 최종낙찰 필드 보유 행).
+- **원천 피드**: `awards` (`getDataSetOpnStdScsbidInfo` 중 `is_selected_winner == True`).
 
 ---
 
@@ -164,23 +170,27 @@ erDiagram
 ### 3.5 `tender_contract_bridge` (공고-계약 연결 브릿지)
 - **개념**: 입찰공고와 최종 계약 간의 릴레이션 매핑을 담당하는 관계 브릿지 테이블.
 - **의도된 그레인**: 계약 1건당 연결된 공고 매핑.
-- **기본 키 (Primary Key)**: `unified_contract_no`
+- **기본 키 (Primary Key)**: `unified_contract_no` (단일 계약이 2개 이상의 공고에 연결된 사례 0건 실증)
+- **관계성 실측 (Tender 1 : N Contract)**:
+  - 계약 기준 연결 공고 수: 0개 공고 연결 **75,268건 (64.92%)**, 1개 공고 연결 **40,677건 (35.08%)**, **2개 이상 공고 연결 0건 (0.00%)**.
+  - 따라서 계약 $\rightarrow$ 공고 매핑은 엄격히 0..1 관계이며, 전체 관계는 **Tender (1) : Contract (0..N)** 입니다.
 - **외래 키 (Foreign Keys)**:
   - `unified_contract_no` $\rightarrow$ `contracts.unified_contract_no`
   - `(bid_notice_no, bid_notice_round)` $\rightarrow$ `tenders.(bid_notice_no, bid_notice_round)` (Nullable: True)
 - **카디널리티 실측**:
   - 공고와 직접 연결되는 계약: **35.08%** (40,677건)
   - 공고 미연결 계약: **64.92%** (75,268건)
-    - 미연결 계약 중 수의계약(`contract_method == '수의계약'`): **96.21%** (72,418건)
-    - 미연결 계약 중 경쟁계약(제한/일반/지명경쟁): **3.79%** (2,850건)
+    - 미연결 계약 중 수의계약(`contract_method == '수의계약'`): **72,418건** (소계 대조 100% 정합)
+    - 미연결 계약 중 경쟁계약(제한/일반/지명경쟁): **2,850건**
 - **설계 의의**: 미연결 계약을 공고와 억지로 Inner Join하여 누락시키는 오류를 방지하고, 단일 공고가 여러 계약으로 분할 체결되는 1:N 관계(208건)를 안전하게 수용합니다.
 
 ---
 
 ### 3.6 `suppliers` (공급업체 차원 테이블)
 - **개념**: 조달시장에 참여하는 기업/개인사업자 마스터.
-- **기본 키 (Primary Key)**: `supplier_id` (10자리 정규화 사업자등록번호 기반 **HMAC-SHA256** 해시 ID)
-- **식별자 가명화 정책**: 공개 Kaggle 데이터셋 배포 시 사업자등록번호 원문은 비공개하며, 안전한 단방향 HMAC 키(`supplier_id`)와 마스킹된 번호(`123-45-*****`)를 제공합니다. HMAC 키는 비공개 서버 키(`DATA_GO_KR_SERVICE_KEY`)로 서명되어 평문 해시 역산 공격에 내성이 있습니다.
+- **기본 키 (Primary Key)**: `supplier_id` (10자리 정규화 사업자등록번호 기반 **HMAC-SHA256** `SUP_<32 hex>` 해시 ID)
+- **식별자 가명화 정책**: 공개 Kaggle 데이터셋 배포 시 사업자등록번호 원문은 비공개하며, 안전한 단방향 HMAC 키(`supplier_id`)와 마스킹된 번호(`123-45-*****`)를 제공합니다.
+- **비밀키 분리 원칙**: HMAC 키는 API 인증키(`DATA_GO_KR_SERVICE_KEY`)와 완전히 분리된 전용 비밀키(`KONEPS_SUPPLIER_HMAC_KEY`)로 서명되며, 배포 버전 간 일관성을 위해 영구 보존됩니다.
 - **실측 규모 (2026년 8월)**:
   - 투찰 기업: 123,777개사
   - 낙찰 기업: 13,376개사

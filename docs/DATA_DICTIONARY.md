@@ -47,7 +47,8 @@
 ## 2. 개찰결과 및 투찰내역 (`awards`)
 
 - **원천 API 오퍼레이션**: `getDataSetOpnStdScsbidInfo`
-- **무손실 중복제거 식별키**: `["bidNtceNo", "bidNtceOrd", "bidprcCorpBizrno", "opengRank", "dqlfctnRsn", "bidprcAmt", "bidprcTm"]`
+- **원천 무손실 중복제거 식별키 (Raw Deduplication Grain)**: `["bidNtceNo", "bidNtceOrd", "bidprcCorpBizrno", "opengRank", "dqlfctnRsn", "bidprcAmt", "bidprcTm"]`
+- **큐레이티드 테이블 기본 키 (Curated PK)**: `(bid_notice_no, bid_notice_round, bidder_supplier_id, opening_rank, disqualification_reason_ko, bid_amount_krw, bid_submission_time)` (원천 7개 컬럼 무손실 그레인과 동일하게 유지)
 - **의도된 그레인**: 특정 공고·차수 내 개별 기업의 1회 입찰 투찰 제출 건 (`bidder_submissions`).
 
 | 표준 영문 컬럼명 | 원천 API 필드 (한글) | 데이터 타입 | 설명 및 비즈니스 정의 |

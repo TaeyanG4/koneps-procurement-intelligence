@@ -34,10 +34,15 @@ def test_supplier_public_id_policy():
     id3 = generate_supplier_id("987-65-43210", fake_key)
 
     assert id1.startswith("SUP_")
-    assert len(id1) == 20  # "SUP_" (4) + 16 hex chars
+    assert len(id1) == 36  # "SUP_" (4) + 32 hex chars
     assert id1 == id2, "Normalized biz nos must produce identical supplier IDs"
     assert id1 != id3, "Different biz nos must produce distinct supplier IDs"
+    # Invalid or incomplete inputs must return empty string
     assert generate_supplier_id("", fake_key) == ""
+    assert generate_supplier_id(None, fake_key) == ""
+    assert generate_supplier_id("12345", fake_key) == "", "Less than 10 digits must be rejected"
+    assert generate_supplier_id("12345678901", fake_key) == "", "More than 10 digits must be rejected"
+    assert generate_supplier_id("abcdefghij", fake_key) == "", "Non-numeric must be rejected"
 
 
 def test_deterministic_json_metrics_output(tmp_path: Path):
@@ -183,7 +188,7 @@ def test_synthetic_audit_fixtures_execution():
 
     notice_cnt_counts = has_notice.groupby(["bid_notice_no", "bid_notice_round"]).size()
     assert notice_cnt_counts.get(("TEST_TENDER_002", "000")) == 1
-    assert notice_cnt_counts.get(("TEST_TENDER_003", "000")) == 2, "TEST_TENDER_003 has 2 contracts (M:N bridge relation)"
+    assert notice_cnt_counts.get(("TEST_TENDER_003", "000")) == 2, "TEST_TENDER_003 has 2 contracts (Tender 1:N Contract relation)"
 
 
 def test_pagination_verification_semantics():
@@ -216,7 +221,84 @@ def test_public_metrics_snapshot_reconciliation():
     assert classes.get("DISTINCT_CLASSIFICATION_OR_LOT", 0) == 0
     assert classes.get("UNRESOLVED", 0) == 0
 
-    # Ensure no PII in snapshot
+    # Ensure no PII or raw sample data in snapshot
     json_text = json.dumps(m)
     for pii_marker in ["주식회사", "사업자등록번호", "대표자", "010-"]:
         assert pii_marker not in json_text
+    # Ensure sample_cases with real tender IDs or raw bid amounts was removed
+    assert "sample_cases" not in json_text
+    assert "R26BK" not in json_text, "Real tender notice IDs must not appear in public snapshot"
+
+
+def test_contract_method_explicit_mapping_and_reconciliation():
+    """Verify that contract methods are mapped explicitly without frequency heuristics and subtotal reconciles."""
+    with open(DOCS_METRICS_PATH, "r", encoding="utf-8") as f:
+        m = json.load(f)
+
+    bids_cnt = m["cardinality"]["bids_to_contracts"]
+    assert bids_cnt["unlinked_contract_method_subtotal_reconciled"] is True
+
+    breakdown = bids_cnt["unlinked_contract_method_breakdown"]
+    # All keys must have descriptive English labels in parentheses
+    for key in breakdown.keys():
+        assert "(" in key and ")" in key, f"Contract method {key} must have explicit standard mapping"
+
+    # Subtotal must match exactly
+    assert sum(breakdown.values()) == bids_cnt["contracts_without_tender_link"]
+    # Total contracts must reconcile
+    assert bids_cnt["contracts_with_tender_link"] + bids_cnt["contracts_without_tender_link"] == bids_cnt["total_contracts_rows"]
+
+
+def test_awards_category_explicit_mapping():
+    """Verify awards categories are mapped without size heuristics."""
+    with open(DOCS_METRICS_PATH, "r", encoding="utf-8") as f:
+        m = json.load(f)
+
+    by_cat = m["cardinality"]["bids_to_awards"]["bidders_per_tender_by_category"]
+    expected_categories = {"construction", "goods", "service", "foreign"}
+    assert set(by_cat.keys()) == expected_categories
+
+
+def test_award_outcomes_pk_validation_metrics():
+    """Verify award_outcomes PK candidate has 0 duplicates and strictly unique."""
+    with open(DOCS_METRICS_PATH, "r", encoding="utf-8") as f:
+        m = json.load(f)
+
+    aw_val = m.get("award_outcomes_pk_validation", {})
+    assert aw_val["is_strictly_unique"] is True
+    assert aw_val["candidate_key_duplicate_count"] == 0
+    assert aw_val["candidate_key_distinct_count"] == aw_val["award_outcome_rows"]
+    # Core identifiers must have 0 nulls
+    nulls = aw_val["candidate_key_null_component_counts"]
+    assert nulls["bid_notice_no"] == 0
+    assert nulls["bid_notice_round"] == 0
+    assert nulls["winner_business_registration_no"] == 0
+    assert nulls["bid_submission_time"] == 0
+
+
+def test_tender_contract_bridge_cardinality():
+    """Verify Tender 1:N Contract relationship semantics."""
+    with open(DOCS_METRICS_PATH, "r", encoding="utf-8") as f:
+        m = json.load(f)
+
+    bridge = m["cardinality"]["tender_contract_bridge_cardinality"]
+    assert bridge["contracts_linked_to_2plus_tenders"] == 0
+    assert bridge["relationship_type"] == "Tender (1) : Contract (0..N)"
+    assert bridge["bridge_primary_key"] == "unified_contract_no"
+    assert bridge["contracts_linked_to_1_tender"] == 40677
+    assert bridge["contracts_linked_to_0_tenders"] == 75268
+
+
+def test_storage_footprint_exact_bytes_and_units():
+    """Verify storage measurements explicitly separate MiB and MB."""
+    with open(DOCS_METRICS_PATH, "r", encoding="utf-8") as f:
+        m = json.load(f)
+
+    storage = m["storage"]
+    assert storage["raw_jsonl_gz_bytes"] == 131322271
+    assert storage["raw_jsonl_gz_mib"] == 125.24
+    assert storage["raw_jsonl_gz_mb"] == 131.32
+    assert storage["processed_parquet_bytes"] == 148156166
+    assert storage["processed_parquet_mib"] == 141.29
+    assert storage["processed_parquet_mb"] == 148.16
+

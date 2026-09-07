@@ -121,8 +121,10 @@ erDiagram
 
 ### 3.2 `bidder_submissions` (Individual Bidder Submissions)
 - **Concept**: A discrete bid submitted by an enterprise for a specific tender.
-- **Intended Grain**: One submission per bidder per tender item/schedule.
-- **Primary Key**: `(bid_notice_no, bid_notice_round, bidder_supplier_id, bid_amount_krw, bid_submission_time, opening_rank)`
+- **Raw Deduplication Grain vs. Curated PK Distinction**:
+  - **Raw Deduplication Grain**: `(bid_notice_no, bid_notice_round, bidder_biz_no, opening_rank, disqualification_reason_ko, bid_amount_krw, bid_submission_time)` — 7-column lossless key used to collapse post-opening snapshot updates in raw API responses (0 duplicates, 100% lossless proven).
+  - **Curated Immutable Submission Identity**: Rank and disqualification reason are post-submission outcome attributes rather than submission-time properties. However, pure submission event candidates (Candidates A and B) exhibit collisions (432 and 841 rows respectively) due to unranked negotiation bidders. Therefore, the physical curated table retains the verified 7-column composite key to ensure complete data integrity.
+- **Primary Key**: `(bid_notice_no, bid_notice_round, bidder_supplier_id, opening_rank, disqualification_reason_ko, bid_amount_krw, bid_submission_time)`
 - **Foreign Keys**:
   - `(bid_notice_no, bid_notice_round)` $\rightarrow$ `tenders` (Nullable: False)
   - `bidder_supplier_id` $\rightarrow$ `suppliers.supplier_id` (Nullable: False)
@@ -136,6 +138,11 @@ erDiagram
 - **Concept**: The final adjudicated outcome indicating winning suppliers, prices, and rates.
 - **Intended Grain**: One award decision per lot/winner in a tender.
 - **Primary Key**: `(bid_notice_no, bid_notice_round, winner_supplier_id, award_amount_krw, bid_submission_time)`
+- **Empirical Metrics (August 2026 Audit)**:
+  - Total Awarded Rows: **17,315 rows**
+  - Candidate Key Distinct Count: **17,315** (Duplicate count: **0**, null component rate: 0.0%)
+  - Verification Status: **LIVE VERIFIED** (0 duplicates verified across entire pilot).
+  - Lot Identity Note: Because the official OpenAPI awards feed does not provide a separate lot/item number (`bid_classification_no`), `bid_submission_time` serves as the empirical discriminator for multi-award tenders.
 - **Foreign Keys**:
   - `(bid_notice_no, bid_notice_round)` $\rightarrow$ `tenders`
   - `winner_supplier_id` $\rightarrow$ `suppliers.supplier_id`
@@ -143,8 +150,7 @@ erDiagram
   - 0 Winners: 8,197 tenders (32.82% - failed bids or pending review)
   - 1 Winner: 16,741 tenders (67.02% - standard single-winner award)
   - 2+ Winners: 40 tenders (0.16% - multi-item/lot allocations or joint awards)
-- **Verification**: **LIVE VERIFIED**
-- **Source Feed**: `awards` rows with `is_selected_winner == True` and populated final award amounts.
+- **Source Feed**: `awards` rows with `is_selected_winner == True`.
 
 ---
 
@@ -162,25 +168,30 @@ erDiagram
 ---
 
 ### 3.5 `tender_contract_bridge` (Tender-Contract Relationship Bridge)
-- **Concept**: Resolves the non-trivial relationship between tender announcements and contracts.
+- **Concept**: Resolves the relationship between tender announcements and executed contracts.
 - **Intended Grain**: One row per contract mapping.
-- **Primary Key**: `unified_contract_no`
+- **Primary Key**: `unified_contract_no` (strictly unique; 0 contracts map to 2+ tenders)
+- **Relationship Type (Tender 1 : N Contract)**:
+  - Contracts mapping to 0 tenders: **75,268 rows (64.92%)**
+  - Contracts mapping to 1 tender: **40,677 rows (35.08%)**
+  - Contracts mapping to 2+ tenders: **0 rows (0.00%)**
+  - The empirical relationship is strictly **Tender (1) : Contract (0..N)**. Naive inner joins would discard all 75,268 non-tendered contracts.
 - **Foreign Keys**:
   - `unified_contract_no` $\rightarrow$ `contracts.unified_contract_no`
   - `(bid_notice_no, bid_notice_round)` $\rightarrow$ `tenders.(bid_notice_no, bid_notice_round)` (Nullable: True)
 - **Empirical Ratios (August 2026)**:
   - Contracts linked to tender notice: **35.08%** (40,677 rows)
   - Contracts without tender notice: **64.92%** (75,268 rows)
-    - Private contracts (`contract_method == '수의계약'`): **96.21%** (72,418 rows)
-    - Off-notice competitive contracts: **3.79%** (2,850 rows)
-- **Design Rationale**: Prevents data loss caused by naive inner joins and safely supports multi-contract tenders (208 tenders linked to 2+ contracts).
+    - Private contracts (`contract_method == '수의계약'`): **72,418 rows** (subtotal 100% reconciled)
+    - Off-notice competitive contracts: **2,850 rows**
 
 ---
 
 ### 3.6 `suppliers` (Supplier Dimension Table)
 - **Concept**: Unified dimension of all enterprises and sole proprietors participating in procurement.
-- **Primary Key**: `supplier_id` (**HMAC-SHA256** pseudonymized hash of normalized 10-digit registration number)
-- **Privacy Policy**: Raw business registration numbers are never published; public releases include a stable HMAC pseudo-ID (`supplier_id`) and masked string (`123-45-*****`). The HMAC key is signed with a private server secret, providing resistance against plain-hash reversal attacks.
+- **Primary Key**: `supplier_id` (**HMAC-SHA256** pseudonymized `SUP_<32 hex>` hash of normalized 10-digit registration number)
+- **Privacy Policy**: Raw business registration numbers are never published; public releases include a stable HMAC pseudo-ID (`supplier_id`) and masked string (`123-45-*****`).
+- **Secret Key Separation**: The HMAC key is derived from a dedicated environment variable (`KONEPS_SUPPLIER_HMAC_KEY`), completely separated from the API key (`DATA_GO_KR_SERVICE_KEY`), and must remain stable across all dataset releases.
 - **Empirical Volume (August 2026)**:
   - Distinct Bidders: 123,777
   - Distinct Winners: 13,376

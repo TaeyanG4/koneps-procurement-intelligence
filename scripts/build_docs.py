@@ -3,6 +3,9 @@
 
 Uses python-docx to parse project Markdown documents and generate styled .docx files
 into docs/generated/.
+
+The --check mode only verifies Markdown source hashes against the committed manifest.
+It does NOT require python-docx to be installed.
 """
 from __future__ import annotations
 
@@ -11,13 +14,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
-
-import docx
-from docx import Document
-from docx.shared import Inches, Pt, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_TABLE_ALIGNMENT
+from typing import Any, Dict, List, Tuple
 
 
 DOCS_DIR = Path(__file__).resolve().parent.parent / "docs"
@@ -61,7 +58,16 @@ def parse_table_row(line: str) -> List[str]:
 
 
 def markdown_to_docx(md_path: Path, docx_path: Path) -> None:
-    """Convert a Markdown file to a styled DOCX document."""
+    """Convert a Markdown file to a styled DOCX document.
+
+    NOTE: python-docx is imported lazily here so that --check mode does not
+    require the library to be installed.
+    """
+    # Lazy import — only needed when actually generating DOCX files
+    from docx import Document
+    from docx.shared import Inches, Pt, RGBColor
+    from docx.enum.table import WD_TABLE_ALIGNMENT
+
     doc = Document()
 
     # Configure base margins
@@ -202,8 +208,19 @@ def markdown_to_docx(md_path: Path, docx_path: Path) -> None:
 
 
 def compute_source_hash(md_path: Path) -> str:
-    """Compute SHA-256 hash of Markdown source file."""
-    return hashlib.sha256(md_path.read_bytes()).hexdigest()
+    """Compute a cross-platform SHA-256 hash of a Markdown source file.
+
+    Normalizes CRLF and CR line endings to LF before hashing so that
+    the hash is identical on Windows (CRLF) and Linux/macOS (LF).
+    This ensures that the manifest recorded on Windows is valid in
+    GitHub Actions (Ubuntu).
+    """
+    raw_bytes = md_path.read_bytes()
+    # Decode, normalize line endings, re-encode to canonical UTF-8
+    text = raw_bytes.decode("utf-8", errors="replace")
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    canonical = text.encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
 
 
 def build_all_docs() -> List[Path]:

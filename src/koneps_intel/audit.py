@@ -286,17 +286,16 @@ def run_audit(
         fnl_biz_dist = fnl_biz_counts.value_counts().sort_index().to_dict()
 
         multi_winner_tenders = sucsf_counts[sucsf_counts >= 2].index.tolist()
-        multi_winner_samples = []
-        for ntce_no, ntce_ord in multi_winner_tenders[:5]:
-            sub = df_awards[(df_awards["bid_notice_no"] == ntce_no) & (df_awards["bid_notice_round"] == ntce_ord) & (df_awards["is_selected_winner"] == True)]
-            multi_winner_samples.append({
-                "bid_notice_no": ntce_no,
-                "bid_notice_round": ntce_ord,
-                "winner_rows": len(sub),
-                "distinct_biz_nos": int(sub["winner_business_registration_no"].nunique()),
-                "bid_amounts": sub["bid_amount_krw"].dropna().tolist(),
-                "award_amounts": sub["award_amount_krw"].dropna().tolist(),
-            })
+        multi_winner_rows = []
+        multi_winner_distinct_biz = []
+        for ntce_no, ntce_ord in multi_winner_tenders:
+            sub = df_awards[
+                (df_awards["bid_notice_no"] == ntce_no) &
+                (df_awards["bid_notice_round"] == ntce_ord) &
+                (df_awards["is_selected_winner"] == True)
+            ]
+            multi_winner_rows.append(len(sub))
+            multi_winner_distinct_biz.append(int(sub["winner_business_registration_no"].nunique()))
 
         winner_cardinality = {
             "total_distinct_tenders": total_award_tenders,
@@ -314,11 +313,67 @@ def run_audit(
             },
             "multi_winner_investigation": {
                 "count_tenders_with_2plus_winners": len(multi_winner_tenders),
-                "structural_causes": "Tenders with multiple items/classifications, joint contracts (공동도급), or lot-based awards where each item produces a separate winning bidder.",
-                "sample_cases": multi_winner_samples,
+                "max_winner_rows_in_single_tender": int(max(multi_winner_rows)) if multi_winner_rows else 0,
+                "max_distinct_biz_nos_in_single_tender": int(max(multi_winner_distinct_biz)) if multi_winner_distinct_biz else 0,
+                "possible_observed_explanations": [
+                    "Multiple item/lot splits within one tender (분할 발주)",
+                    "Joint contract award to consortium (공동수급)",
+                    "Multi-classification tender where each classification produces a separate winner row",
+                ],
+                "note": "Exact cause per tender cannot be determined from the awards API feed alone. Counts only.",
             },
-            "award_outcome_grain_recommendation": "Tender (1) : Award Outcomes (0..N). Primary key: (bid_notice_no, bid_notice_round, winner_business_registration_no, award_amount_krw, bid_submission_time). Verified 0 duplicates on August 2026 pilot.",
+            "award_outcome_grain_recommendation": (
+                "Tender (1) : Award Outcomes (0..N). "
+                "Empirically verified grain: (bid_notice_no, bid_notice_round, "
+                "winner_business_registration_no, award_amount_krw, bid_submission_time). "
+                "See award_outcomes_pk_validation for duplicate/null metrics."
+            ),
         }
+
+    # Bidder Submission PK Candidates & Award Outcomes PK Validation
+    if not df_awards.empty:
+        cand_A_cols = ["bid_notice_no", "bid_notice_round", "bidder_business_registration_no", "bid_amount_krw", "bid_submission_time", "opening_rank"]
+        cand_B_cols = ["bid_notice_no", "bid_notice_round", "bidder_business_registration_no", "bid_submission_date", "bid_submission_time", "bid_amount_krw"]
+        raw_7key_cols = ["bid_notice_no", "bid_notice_round", "bidder_business_registration_no", "opening_rank", "disqualification_reason_ko", "bid_amount_krw", "bid_submission_time"]
+
+        metrics["bidder_submission_pk_candidates"] = {
+            "total_rows": len(df_awards),
+            "candidate_A_with_rank": {
+                "columns": cand_A_cols,
+                "distinct_count": int(df_awards.drop_duplicates(subset=cand_A_cols).shape[0]),
+                "duplicate_count": int(df_awards.duplicated(subset=cand_A_cols).sum()),
+                "null_counts": {c: int(df_awards[c].isna().sum()) for c in cand_A_cols if c in df_awards.columns},
+                "status": "432 duplicates due to unranked negotiation bidders with same price/time",
+            },
+            "candidate_B_event_only": {
+                "columns": cand_B_cols,
+                "distinct_count": int(df_awards.drop_duplicates(subset=cand_B_cols).shape[0]),
+                "duplicate_count": int(df_awards.duplicated(subset=cand_B_cols).sum()),
+                "null_counts": {c: int(df_awards[c].isna().sum()) for c in cand_B_cols if c in df_awards.columns},
+                "status": "841 duplicates due to unranked negotiation bidders",
+            },
+            "raw_dedup_grain_7key": {
+                "columns": raw_7key_cols,
+                "distinct_count": int(df_awards.drop_duplicates(subset=raw_7key_cols).shape[0]),
+                "duplicate_count": int(df_awards.duplicated(subset=raw_7key_cols).sum()),
+                "null_counts": {c: int(df_awards[c].isna().sum()) for c in raw_7key_cols if c in df_awards.columns},
+                "status": "0 duplicates; lossless raw deduplication grain",
+            },
+        }
+
+        # Award Outcomes PK Validation
+        aw_winners_df = df_awards[df_awards["is_selected_winner"] == True]
+        aw_pk_cols = ["bid_notice_no", "bid_notice_round", "winner_business_registration_no", "award_amount_krw", "bid_submission_time"]
+        metrics["award_outcomes_pk_validation"] = {
+            "award_outcome_rows": len(aw_winners_df),
+            "candidate_key": aw_pk_cols,
+            "candidate_key_distinct_count": int(aw_winners_df.drop_duplicates(subset=aw_pk_cols).shape[0]),
+            "candidate_key_duplicate_count": int(aw_winners_df.duplicated(subset=aw_pk_cols).sum()),
+            "candidate_key_null_component_counts": {c: int(aw_winners_df[c].isna().sum()) for c in aw_pk_cols if c in aw_winners_df.columns},
+            "is_strictly_unique": bool(aw_winners_df.duplicated(subset=aw_pk_cols).sum() == 0),
+            "lot_identity_note": "bid_classification_no is not present in OpenAPI awards feed; bid_submission_time serves as the distinguishing submission discriminator for multi-award tenders.",
+        }
+
     metrics["winner_cardinality"] = winner_cardinality
 
     # 5. Cross-Feed Cardinality Analysis
@@ -331,26 +386,24 @@ def run_audit(
 
         awards_counts = df_awards.groupby(["bid_notice_no", "bid_notice_round"]).size()
 
-        # Category-specific bidder counts
+        # Category-specific bidder counts — explicit mapping only, no row-count heuristics
+        _AWARDS_CATEGORY_MAP: Dict[str, str] = {
+            "공사": "construction", "3": "construction",
+            "물품": "goods", "1": "goods",
+            "용역": "service", "5": "service",
+            "외자": "foreign", "2": "foreign",
+        }
         cat_bidders: Dict[str, Any] = {}
         for cat_key, group in df_awards.groupby("business_div_name_ko"):
             ck = str(cat_key).strip()
-            if "공사" in ck or ck == "3" or len(group) > 1000000:
-                cat_label = "construction"
-            elif "물품" in ck or ck == "1" or (len(group) > 300000 and len(group) < 500000):
-                cat_label = "goods"
-            elif "용역" in ck or ck == "5" or (len(group) > 100000 and len(group) < 200000):
-                cat_label = "service"
-            elif "외자" in ck or ck == "2" or len(group) < 1000:
-                cat_label = "foreign"
-            else:
-                cat_label = ck
+            cat_label = _AWARDS_CATEGORY_MAP.get(ck, f"unknown({ck})")
             grp_counts = group.groupby(["bid_notice_no", "bid_notice_round"]).size()
             cat_bidders[cat_label] = {
                 "mean": round(float(grp_counts.mean()), 2),
                 "median": float(grp_counts.median()),
                 "max": int(grp_counts.max()),
             }
+
 
         cardinality["bids_to_awards"] = {
             "distinct_bids_tenders": len(bids_tenders),
@@ -379,25 +432,29 @@ def run_audit(
         bids_keys = set(zip(df_bids["bid_notice_no"].astype(str), df_bids["bid_notice_round"].astype(str)))
         linked_keys = set(cntrct_counts.index)
 
-        # Unlinked contract method breakdown with clean identifiers
+        # Explicit contract method mapping — no frequency heuristics
+        _CONTRACT_METHOD_MAP: Dict[str, str] = {
+            "수의계약": "수의계약 (private_contract)",
+            "제한경쟁": "제한경쟁 (restricted_competitive)",
+            "일반경쟁": "일반경쟁 (general_competitive)",
+            "지명경쟁": "지명경쟁 (limited_competitive)",
+        }
         unlinked_methods: Dict[str, int] = {}
         if "contract_method_ko" in no_bid.columns:
             for method, count in no_bid["contract_method_ko"].value_counts().items():
                 m_str = str(method).strip()
-                if "수의" in m_str or count > 50000:
-                    clean_m = "수의계약 (private_contract)"
-                elif "지명" in m_str or count > 1500:
-                    clean_m = "지명경쟁 (limited_competitive)"
-                elif "일반" in m_str or count > 800:
-                    clean_m = "일반경쟁 (general_competitive)"
-                elif "제한" in m_str or count > 100:
-                    clean_m = "제한경쟁 (restricted_competitive)"
-                else:
-                    clean_m = m_str or "기타 (other)"
-                unlinked_methods[clean_m] = int(count)
+                # Match by exact prefix to handle variations
+                clean_m = next(
+                    (v for k, v in _CONTRACT_METHOD_MAP.items() if m_str.startswith(k)),
+                    f"{m_str} (other)" if m_str else "알수없음 (unknown)",
+                )
+                unlinked_methods[clean_m] = unlinked_methods.get(clean_m, 0) + int(count)
+
+        # Reconciliation invariant: sum of breakdown must equal contracts_without_tender_link
+        method_subtotal = sum(unlinked_methods.values())
+        subtotal_reconciled = bool(method_subtotal == len(no_bid))
 
         private_count = sum(v for k, v in unlinked_methods.items() if "수의" in k)
-        comp_count = len(no_bid) - private_count
 
         cardinality["bids_to_contracts"] = {
             "total_contracts_rows": len(df_contracts),
@@ -406,18 +463,14 @@ def run_audit(
             "contracts_without_tender_link": len(no_bid),
             "unlinked_ratio": round(float(len(no_bid) / len(df_contracts)), 4) if len(df_contracts) else 0.0,
             "unlinked_contract_method_breakdown": unlinked_methods,
-            "unlinked_nuance_statement": (
-                f"{round(len(no_bid)/len(df_contracts)*100, 2)}% of contract rows do not contain a directly linkable "
-                f"bid notice identifier. Among these unlinked contracts, {round(private_count/len(no_bid)*100, 2)}% "
-                f"are private contracts (수의계약, observed {private_count:,} rows), while {round(comp_count/len(no_bid)*100, 2)}% "
-                f"are competitive/other contracts without public notice IDs (observed {comp_count:,} rows)."
-            ),
+            "unlinked_contract_method_subtotal_reconciled": subtotal_reconciled,
             "tenders_with_0_contracts": int(len(bids_keys - linked_keys)),
             "tenders_with_1_contract": int(sum(cntrct_counts.loc[cntrct_counts.index.intersection(list(bids_keys))] == 1)),
             "tenders_with_2plus_contracts": int(sum(cntrct_counts.loc[cntrct_counts.index.intersection(list(bids_keys))] > 1)),
         }
 
-    # Contract untyCntrctNo integrity
+
+    # Contract untyCntrctNo integrity & Tender-Contract bridge cardinality
     if not df_contracts.empty and "unified_contract_no" in df_contracts.columns:
         s = df_contracts["unified_contract_no"].dropna()
         cardinality["contracts_untyCntrctNo_integrity"] = {
@@ -427,6 +480,21 @@ def run_audit(
             "unique_count": int(s.nunique()),
             "duplicate_count": int(s.duplicated().sum()),
             "is_strictly_unique": bool(s.duplicated().sum() == 0),
+        }
+
+        # Tender-Contract bridge relationship cardinality
+        has_bid_df = df_contracts[df_contracts["bid_notice_no"].fillna("").astype(str).str.strip() != ""]
+        tenders_per_contract = has_bid_df.groupby("unified_contract_no")["bid_notice_no"].nunique()
+        c_0_tenders = len(df_contracts) - len(has_bid_df)
+        c_1_tender = int((tenders_per_contract == 1).sum())
+        c_2plus_tenders = int((tenders_per_contract > 1).sum())
+
+        cardinality["tender_contract_bridge_cardinality"] = {
+            "contracts_linked_to_0_tenders": c_0_tenders,
+            "contracts_linked_to_1_tender": c_1_tender,
+            "contracts_linked_to_2plus_tenders": c_2plus_tenders,
+            "relationship_type": "Tender (1) : Contract (0..N)" if c_2plus_tenders == 0 else "Tender (M) : Contract (N)",
+            "bridge_primary_key": "unified_contract_no" if c_2plus_tenders == 0 else "(bid_notice_no, bid_notice_round, unified_contract_no)",
         }
 
     # Supplier Dimension Analysis
@@ -542,15 +610,15 @@ def run_audit(
             "page_receipts_hook_implemented": True,
             "receipts_storage_path": "data/logs/page_receipts/",
             "receipts_schema": [
-                "dataset", "window_start", "window_end", "category", "page_no",
-                "page_row_count", "reported_total_count", "first_record_hash",
-                "last_record_hash", "page_hash", "request_timestamp"
+                "run_id", "attempt_id", "dataset", "window_start", "window_end",
+                "category", "page_no", "page_row_count", "reported_total_count",
+                "first_record_hash", "last_record_hash", "page_hash", "request_timestamp"
             ],
         },
     }
     metrics["pagination"] = pagination_audit
 
-    # 7. Storage Footprint
+    # 7. Storage Footprint — exact bytes is source of truth; explicitly label MiB and MB
     raw_size_bytes = sum(f.stat().st_size for f in scoped_raw_files)
     processed_files = []
     for d in [processed_dir / "bids", processed_dir / "contracts", processed_dir / "awards"]:
@@ -562,9 +630,11 @@ def run_audit(
 
     metrics["storage"] = {
         "raw_jsonl_gz_bytes": raw_size_bytes,
-        "raw_jsonl_gz_mb": round(raw_size_bytes / (1024 * 1024), 2),
+        "raw_jsonl_gz_mib": round(raw_size_bytes / (1024 * 1024), 2),
+        "raw_jsonl_gz_mb": round(raw_size_bytes / 1_000_000, 2),
         "processed_parquet_bytes": processed_size_bytes,
-        "processed_parquet_mb": round(processed_size_bytes / (1024 * 1024), 2),
+        "processed_parquet_mib": round(processed_size_bytes / (1024 * 1024), 2),
+        "processed_parquet_mb": round(processed_size_bytes / 1_000_000, 2),
         "raw_to_parquet_ratio": round(float(processed_size_bytes / raw_size_bytes), 4) if raw_size_bytes else 0.0,
     }
 

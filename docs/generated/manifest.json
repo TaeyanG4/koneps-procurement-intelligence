@@ -21,13 +21,13 @@
   },
   "DATA_DICTIONARY.ko.docx": {
     "source": "docs/DATA_DICTIONARY.md",
-    "source_sha256": "fa5685540d3d24cdfcb240a67b31ddbf16e29e1d14e0ac7aec1a43d5862bb29a",
-    "docx_size_bytes": 40510
+    "source_sha256": "a2795aaa1f9f200d3fa810975fbfc64ae87857aec65eb0592c11cf96f377d89e",
+    "docx_size_bytes": 40625
   },
   "DATA_DICTIONARY.en.docx": {
     "source": "docs/DATA_DICTIONARY.en.md",
-    "source_sha256": "957a585d52195858f55d6ddd0e1b9b9740ae9ab850d27cd7754863b66e138ca1",
-    "docx_size_bytes": 40278
+    "source_sha256": "1d9c54912520fa483fd68b47db684d21c5618613371a7c930597bf9ba5eb6828",
+    "docx_size_bytes": 40369
   },
   "LIVE_VALIDATION.ko.docx": {
     "source": "docs/LIVE_VALIDATION.md",
@@ -41,22 +41,22 @@
   },
   "PILOT_2026_08.ko.docx": {
     "source": "docs/PILOT_2026_08.md",
-    "source_sha256": "c24e54390996ca28cea8434f100cc3ba1274119b359829216cdfe0300d537093",
-    "docx_size_bytes": 42209
+    "source_sha256": "26f0b83e64ba5f87428c347992407e6f3573ee676fd441c37de7161dfe54b477",
+    "docx_size_bytes": 42583
   },
   "PILOT_2026_08.en.docx": {
     "source": "docs/PILOT_2026_08.en.md",
-    "source_sha256": "18747723dbd2dd072ba2d1ca7fc4877c2358138d0a20d92682f3c4cb08a77958",
-    "docx_size_bytes": 40886
+    "source_sha256": "5c86586e558569a93d8cfb40c56c1c7001d4f3441225e1aaab13af22b516fad7",
+    "docx_size_bytes": 41320
   },
   "RELATIONAL_MODEL.ko.docx": {
     "source": "docs/RELATIONAL_MODEL.md",
-    "source_sha256": "55006151be69a7f7a557ce26329f81d4daff7f1957bcee1c27771462ce9a2189",
-    "docx_size_bytes": 41237
+    "source_sha256": "3167fd21512e1ee4ca468b21de377d28195f588df6881e0c19b71f0496b648a1",
+    "docx_size_bytes": 41956
   },
   "RELATIONAL_MODEL.en.docx": {
     "source": "docs/RELATIONAL_MODEL.en.md",
-    "source_sha256": "12a68fd35e1bc284f6abd054f51116249b651fe6edd680d2cc9ae41967ef39db",
-    "docx_size_bytes": 40597
+    "source_sha256": "335c5af57218b328155c3101774112feb18d27ae8954ca8efda68c4168d61879",
+    "docx_size_bytes": 41211
   }
 }

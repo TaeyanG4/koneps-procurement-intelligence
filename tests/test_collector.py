@@ -397,6 +397,8 @@ def test_page_receipt_generation_and_storage(tmp_path):
         reported_total_count=100,
     )
 
+    assert receipt["run_id"] == "default"
+    assert receipt["attempt_id"] == "attempt_1"
     assert receipt["dataset"] == "awards"
     assert receipt["category"] == "1"
     assert receipt["page_no"] == 1
@@ -406,6 +408,21 @@ def test_page_receipt_generation_and_storage(tmp_path):
     assert receipt["last_record_hash"] is not None
     assert receipt["page_hash"] is not None
     assert receipt["first_record_hash"] != receipt["last_record_hash"]
+
+    # Verify custom run_id and attempt_id
+    receipt_custom = generate_page_receipt(
+        dataset="awards",
+        window_start="2026-08-01",
+        window_end="2026-08-31",
+        category="1",
+        page_no=1,
+        items=items,
+        reported_total_count=100,
+        run_id="run_20260907_001",
+        attempt_id="attempt_2_retry",
+    )
+    assert receipt_custom["run_id"] == "run_20260907_001"
+    assert receipt_custom["attempt_id"] == "attempt_2_retry"
 
     # Verify no raw sensitive strings in receipt
     receipt_json = json.dumps(receipt)
@@ -435,5 +452,39 @@ def test_page_receipt_generation_and_storage(tmp_path):
         logged_rcpt = json.loads(line)
         assert logged_rcpt["page_no"] == 1
         assert logged_rcpt["page_row_count"] == 2
+        assert "run_id" in logged_rcpt
+        assert "attempt_id" in logged_rcpt
+
+
+def test_page_receipt_attempt_and_failure_semantics(tmp_path):
+    """Verify that multiple attempts append distinct receipts and failed attempts record receipts."""
+    from koneps_intel.collector import generate_page_receipt, Collector
+    from koneps_intel.endpoints import FEEDS
+
+    mock_client = MagicMock()
+    # First attempt raises an error on page 2
+    mock_client.get_page.side_effect = [
+        ([{"col": "val1"}], 100),
+        RuntimeError("Network timeout on page 2"),
+    ]
+
+    out_dir = tmp_path / "raw"
+    collector = Collector(client=mock_client, out_dir=out_dir)
+    spec = FEEDS["bids"]
+    start = date(2026, 8, 1)
+    end = date(2026, 8, 31)
+
+    with pytest.raises(RuntimeError):
+        collector.collect_window(spec, start, end, page_size=1)
+
+    # Page 1 receipt was still recorded before failure
+    receipt_files = list(collector.receipts_dir.glob("*.jsonl"))
+    assert len(receipt_files) == 1
+    with open(receipt_files[0], "r", encoding="utf-8") as f:
+        lines = f.readlines()
+        assert len(lines) == 1
+        rcpt1 = json.loads(lines[0])
+        assert rcpt1["page_no"] == 1
+
 
 

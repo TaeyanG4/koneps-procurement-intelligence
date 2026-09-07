@@ -26,10 +26,13 @@ def generate_page_receipt(
     items: List[Dict[str, Any]],
     reported_total_count: int,
     request_timestamp: Optional[str] = None,
+    run_id: Optional[str] = None,
+    attempt_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Generate public-safe receipt metadata for an API page without PII or credentials.
 
-    Captures structural hashes and pagination metadata for future verifiable observability.
+    Captures structural hashes and pagination metadata for verifiable observability.
+    Includes run_id and attempt_id to distinguish retries, forced runs, and failed attempts.
     """
     first_hash = None
     last_hash = None
@@ -43,6 +46,8 @@ def generate_page_receipt(
         page_hash = hashlib.sha256(page_content.encode("utf-8")).hexdigest()
 
     return {
+        "run_id": run_id or "default",
+        "attempt_id": attempt_id or "attempt_1",
         "dataset": dataset,
         "window_start": window_start,
         "window_end": window_end,
@@ -211,6 +216,8 @@ class Collector:
                         page_no=page,
                         items=items,
                         reported_total_count=total,
+                        run_id=initial_meta.get("started_at_utc"),
+                        attempt_id=f"page_{page}",
                     )
                     self._record_receipt(receipt)
 

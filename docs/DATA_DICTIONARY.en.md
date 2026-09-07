@@ -47,7 +47,8 @@ This data dictionary outlines the canonical English column schema produced by th
 ## 2. Bid Results & Awards (`awards`)
 
 - **Source API Operation**: `getDataSetOpnStdScsbidInfo`
-- **Lossless Deduplication Key**: `["bidNtceNo", "bidNtceOrd", "bidprcCorpBizrno", "opengRank", "dqlfctnRsn", "bidprcAmt", "bidprcTm"]`
+- **Raw Deduplication Grain**: `["bidNtceNo", "bidNtceOrd", "bidprcCorpBizrno", "opengRank", "dqlfctnRsn", "bidprcAmt", "bidprcTm"]` (7-column lossless key to collapse post-opening snapshot updates).
+- **Curated Table Primary Key**: `(bid_notice_no, bid_notice_round, bidder_supplier_id, opening_rank, disqualification_reason_ko, bid_amount_krw, bid_submission_time)` (retains 7-column lossless grain).
 - **Intended Grain**: One submission per bidder per tender lot (`bidder_submissions`).
 
 | Canonical English Column | Source API Field (Korean) | Data Type | Description |
