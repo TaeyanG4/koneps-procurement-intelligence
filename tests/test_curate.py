@@ -259,8 +259,10 @@ def test_build_all_curated_tables_integrity(synthetic_raw_feeds):
     submissions = build_curated_bidder_submissions(raw_awards, TEST_HMAC_KEY, tender_keys)
     awards = build_curated_award_outcomes(raw_awards, TEST_HMAC_KEY, tender_keys)
     contracts = build_curated_contracts(raw_contracts, TEST_HMAC_KEY)
-    suppliers = build_curated_suppliers(raw_awards, raw_contracts, TEST_HMAC_KEY)
-    agencies = build_curated_agencies(raw_bids, raw_contracts)
+    # build_curated_suppliers now returns (df, conflict_count)
+    suppliers, sup_conflicts = build_curated_suppliers(raw_awards, raw_contracts, TEST_HMAC_KEY)
+    # build_curated_agencies now returns (df, conflict_count)
+    agencies, ag_conflicts = build_curated_agencies(raw_bids, raw_contracts)
     bridge = build_curated_bridge(raw_contracts, tender_keys)
 
     # 1. Tenders Table
@@ -293,24 +295,39 @@ def test_build_all_curated_tables_integrity(synthetic_raw_feeds):
     assert contracts["unified_contract_no"].is_unique
     assert "contractor_business_registration_no" not in contracts.columns
 
-    # 5. Suppliers Table
+    # 5. Suppliers Table — masked_biz_no REMOVED, snapshot_ prefix for aggregates
     assert len(suppliers) == 4  # 1112233333, 2223344444, 3334455555, 4445566666
     assert suppliers["supplier_id"].is_unique
     assert suppliers["supplier_id"].str.startswith("SUP_").all()
     assert "business_registration_no" not in suppliers.columns
-    assert "masked_biz_no" in suppliers.columns
-    assert (suppliers["masked_biz_no"].str.endswith("*****")).all()
+    # masked_biz_no is now excluded from publishable output
+    assert "masked_biz_no" not in suppliers.columns
+    # Snapshot stats use snapshot_ prefix
+    assert "snapshot_total_bids_in_scope" in suppliers.columns
+    assert "snapshot_total_wins_in_scope" in suppliers.columns
+    # Old unprefixed column names must NOT be present
+    assert "total_bids_in_scope" not in suppliers.columns
+    # Conflict count is an int
+    assert isinstance(sup_conflicts, int)
+    assert sup_conflicts >= 0
 
-    # Verify supplier roles
-    sup1 = suppliers[suppliers["masked_biz_no"] == "111-22-*****"].iloc[0]
+    # Verify supplier roles by supplier_id lookup
+    from koneps_intel.privacy import generate_supplier_id
+    sid1 = generate_supplier_id("1112233333", TEST_HMAC_KEY)
+    sup1 = suppliers[suppliers["supplier_id"] == sid1].iloc[0]
     assert sup1["is_bidder"] and sup1["is_winner"] and sup1["is_contractor"]
 
-    sup2 = suppliers[suppliers["masked_biz_no"] == "222-33-*****"].iloc[0]
+    sid2 = generate_supplier_id("2223344444", TEST_HMAC_KEY)
+    sup2 = suppliers[suppliers["supplier_id"] == sid2].iloc[0]
     assert sup2["is_bidder"] and not sup2["is_winner"] and not sup2["is_contractor"]
 
     # 6. Agencies Table
     assert len(agencies) == 5  # AG001, AG002, AG003, AG004, AG005
     assert agencies["agency_code"].is_unique
+    assert isinstance(ag_conflicts, int)
+    # Snapshot stats use snapshot_ prefix
+    assert "snapshot_total_tenders_in_scope" in agencies.columns
+    assert "total_tenders_in_scope" not in agencies.columns
 
     # 7. Bridge Table (linked contracts only)
     assert len(bridge) == 2  # CNT-2026-001 (linked to Aug notice), CNT-2026-002 (linked to July notice)
@@ -329,8 +346,8 @@ def test_reconciliation_gates_validation(synthetic_raw_feeds):
         "bidder_submissions": build_curated_bidder_submissions(raw_awards, TEST_HMAC_KEY, tender_keys),
         "award_outcomes": build_curated_award_outcomes(raw_awards, TEST_HMAC_KEY, tender_keys),
         "contracts": build_curated_contracts(raw_contracts, TEST_HMAC_KEY),
-        "suppliers": build_curated_suppliers(raw_awards, raw_contracts, TEST_HMAC_KEY),
-        "agencies": build_curated_agencies(raw_bids, raw_contracts),
+        "suppliers": build_curated_suppliers(raw_awards, raw_contracts, TEST_HMAC_KEY)[0],
+        "agencies": build_curated_agencies(raw_bids, raw_contracts)[0],
         "tender_contract_bridge": build_curated_bridge(raw_contracts, tender_keys),
     }
 
@@ -356,4 +373,4 @@ def test_reconciliation_gates_validation(synthetic_raw_feeds):
 
 
 def test_curated_schema_version():
-    assert CURATED_SCHEMA_VERSION == "1.0.0"
+    assert CURATED_SCHEMA_VERSION == "1.1.0"

@@ -37,6 +37,11 @@ def main() -> None:
     parser.add_argument("--force", action="store_true", help="Overwrite already collected date windows")
     parser.add_argument("--dry-run", action="store_true", help="Print plan without making real API calls")
     parser.add_argument("--pause", type=float, default=0.08, help="Pacing sleep between successful calls (seconds)")
+    parser.add_argument("--max-windows", type=int, default=None, metavar="N",
+                        help="Stop cleanly after N windows processed (for bounded/staged collection)")
+    parser.add_argument("--max-api-calls", type=int, default=None, metavar="N",
+                        help="Stop cleanly before a window that would exceed N total API calls")
+
     args = parser.parse_args()
 
     logger = get_logger("koneps_collector")
@@ -73,6 +78,8 @@ def main() -> None:
             page_size=args.page_size,
             force=args.force,
             dry_run=args.dry_run,
+            max_windows=args.max_windows,
+            max_api_calls=args.max_api_calls,
         )
         if args.dry_run:
             logger.info(

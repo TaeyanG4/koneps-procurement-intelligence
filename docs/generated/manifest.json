@@ -41,13 +41,13 @@
   },
   "PILOT_2026_08.ko.docx": {
     "source": "docs/PILOT_2026_08.md",
-    "source_sha256": "47d2883793955e6f0ce09356c7b4f3c8f467eed28e05ab528d35468ad553114f",
-    "docx_size_bytes": 44549
+    "source_sha256": "dcbe51c9f55fb9f0af1699b515c0672e779e1e8b21ab63e5af1c312b43f7e878",
+    "docx_size_bytes": 45812
   },
   "PILOT_2026_08.en.docx": {
     "source": "docs/PILOT_2026_08.en.md",
-    "source_sha256": "85d2f5c6dfaa96cdf3ccf582f02150080447fe4c8fbf2c11a63e75909c887140",
-    "docx_size_bytes": 43190
+    "source_sha256": "e73321d8023d497135f04cffae866a191aafa66f6b32c89730b683511ad88ef6",
+    "docx_size_bytes": 44247
   },
   "RELATIONAL_MODEL.ko.docx": {
     "source": "docs/RELATIONAL_MODEL.md",

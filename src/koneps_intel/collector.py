@@ -324,7 +324,7 @@ class Collector:
             self.logger.info("SAVE %s (rows=%d, api_calls=%d)", path.name, row_count, api_calls)
             return row_count, api_calls, path
 
-        except QuotaExceededError as q_err:
+        except QuotaExceededError:
             self._record_attempt_summary(
                 dataset=spec.name,
                 category=business_code,
@@ -334,11 +334,11 @@ class Collector:
                 status="failed",
                 row_count=row_count,
                 total_expected=total_expected,
-                error=f"QuotaExceededError: {q_err}",
+                error="QuotaExceededError",
             )
             if tmp.exists():
                 tmp.unlink()
-            self.logger.error("STOP Daily quota exceeded during window %s [%s..%s]: %s", spec.name, start, end, q_err)
+            self.logger.error("STOP Daily quota exceeded during window %s [%s..%s]", spec.name, start, end)
             raise
         except Exception as exc:
             self._record_attempt_summary(
@@ -350,7 +350,8 @@ class Collector:
                 status="failed",
                 row_count=row_count,
                 total_expected=total_expected,
-                error=str(exc),
+                # Sanitized: only error class name, never full message (may contain URL/key/response)
+                error=type(exc).__name__,
             )
             if tmp.exists():
                 tmp.unlink()
@@ -365,18 +366,62 @@ class Collector:
         page_size: int = 500,
         force: bool = False,
         dry_run: bool = False,
+        max_windows: Optional[int] = None,
+        max_api_calls: Optional[int] = None,
     ) -> CollectionStats:
-        """Run the collection loop over requested datasets and date ranges."""
+        """Run the collection loop over requested datasets and date ranges.
+
+        Args:
+            max_windows: If set, stop cleanly after this many windows are processed
+                (skipped windows count towards the limit). Manifest state is consistent.
+            max_api_calls: If set, stop cleanly before a window that would exceed this limit.
+                The stop is deterministic: the limit is checked before each window, so no
+                partial raw files are written.
+            dry_run: When True, zero API calls are made regardless of other parameters.
+        """
         selected = list(FEEDS) if dataset == "all" else [dataset]
         stats = CollectionStats()
 
         self.logger.info("START collection datasets=%s range=[%s to %s]", selected, start, end)
+
+        windows_processed = 0
 
         for name in selected:
             spec = FEEDS[name]
             codes = BUSINESS_DIVISIONS.keys() if spec.needs_business_division else [None]
             for win_start, win_end in feed_windows(spec, start, end):
                 for code in codes:
+                    # Bounded stop: check limits before processing each window
+                    if max_windows is not None and windows_processed >= max_windows:
+                        self.logger.info(
+                            "BOUNDED STOP: max_windows=%d reached after %d windows.",
+                            max_windows, windows_processed,
+                        )
+                        if dry_run:
+                            self.logger.info(
+                                "DRY-RUN collection: planned_windows=%d, api_calls=0, files_written=0",
+                                stats.dry_run_windows,
+                            )
+                        else:
+                            self.logger.info(
+                                "DONE collection: total_rows=%d, total_api_calls=%d, completed_windows=%d, skipped_windows=%d",
+                                stats.total_rows, stats.total_calls,
+                                stats.completed_windows, stats.skipped_windows,
+                            )
+                        return stats
+
+                    if max_api_calls is not None and not dry_run and stats.total_calls >= max_api_calls:
+                        self.logger.info(
+                            "BOUNDED STOP: max_api_calls=%d reached after %d calls.",
+                            max_api_calls, stats.total_calls,
+                        )
+                        self.logger.info(
+                            "DONE collection: total_rows=%d, total_api_calls=%d, completed_windows=%d, skipped_windows=%d",
+                            stats.total_rows, stats.total_calls,
+                            stats.completed_windows, stats.skipped_windows,
+                        )
+                        return stats
+
                     try:
                         rows, calls, _ = self.collect_window(
                             spec=spec,
@@ -389,6 +434,7 @@ class Collector:
                         )
                         stats.total_rows += rows
                         stats.total_calls += calls
+                        windows_processed += 1
                         if dry_run:
                             stats.dry_run_windows += 1
                         elif rows == 0 and calls == 0:
@@ -419,3 +465,6 @@ class Collector:
             )
         return stats
 
+
+class BoundedCollectionLimitReached(Exception):
+    """Raised when a bounded collection limit (max_windows or max_api_calls) is reached."""

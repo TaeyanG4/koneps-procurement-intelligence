@@ -1,8 +1,10 @@
 {
-  "schema_version": "1.0.0",
-  "generated_at": "2026-09-07T04:02:06.803012+00:00",
+  "schema_version": "1.1.0",
+  "generated_at": "2026-09-07T11:37:57.209291+00:00",
   "curation_scope_start": "2026-08-01",
   "curation_scope_end": "2026-08-31",
+  "deterministic_build": true,
+  "surrogate_id_serialization": "canonical_json_v1",
   "reconciliation_gates": {
     "bids_to_tenders_match": true,
     "awards_to_bidder_submissions_match": true,
@@ -13,7 +15,89 @@
     "suppliers_match": true,
     "agencies_match": true,
     "all_pks_unique_and_non_null": true,
-    "all_reconciliation_gates_passed": true
+    "all_reconciliation_gates_passed": true,
+    "forbidden_column_gate_passed": true,
+    "dtype_constraint_gate_passed": true,
+    "bridge_assertions_passed": true,
+    "temporal_fk": {
+      "submissions": {
+        "TEMPORAL_SCOPE_MATCHED": 1569500,
+        "TEMPORAL_SCOPE_UNMATCHED": 538448,
+        "coverage_ratio": 0.7446
+      },
+      "award_outcomes": {
+        "TEMPORAL_SCOPE_MATCHED": 12918,
+        "TEMPORAL_SCOPE_UNMATCHED": 4397,
+        "coverage_ratio": 0.7461
+      },
+      "bridge": {
+        "TEMPORAL_SCOPE_MATCHED": 9138,
+        "TEMPORAL_SCOPE_UNMATCHED": 31539,
+        "coverage_ratio": 0.2246
+      }
+    },
+    "fk_coverage": {
+      "submissions_bidder_supplier_id_to_suppliers": {
+        "total": 2101308,
+        "matched": 2101308,
+        "unmatched": 0,
+        "coverage_ratio": 1.0
+      },
+      "awards_winner_supplier_id_to_suppliers": {
+        "total": 17315,
+        "matched": 17315,
+        "unmatched": 0,
+        "coverage_ratio": 1.0
+      },
+      "contracts_contractor_supplier_id_to_suppliers": {
+        "total": 115944,
+        "matched": 115944,
+        "unmatched": 0,
+        "coverage_ratio": 1.0
+      },
+      "tenders_notice_agency_code_to_agencies": {
+        "total": 32895,
+        "matched": 32895,
+        "unmatched": 0,
+        "coverage_ratio": 1.0
+      },
+      "submissions_notice_agency_code_to_agencies": {
+        "total": 2107948,
+        "matched": 2099304,
+        "unmatched": 8644,
+        "coverage_ratio": 0.9959
+      },
+      "tenders_demand_agency_code_to_agencies": {
+        "total": 32895,
+        "matched": 32895,
+        "unmatched": 0,
+        "coverage_ratio": 1.0
+      },
+      "submissions_demand_agency_code_to_agencies": {
+        "total": 2107948,
+        "matched": 2099124,
+        "unmatched": 8824,
+        "coverage_ratio": 0.9958
+      },
+      "contracts_demand_agency_code_to_agencies": {
+        "total": 115945,
+        "matched": 115945,
+        "unmatched": 0,
+        "coverage_ratio": 1.0
+      },
+      "contracts_contract_agency_code_to_agencies": {
+        "total": 115945,
+        "matched": 115945,
+        "unmatched": 0,
+        "coverage_ratio": 1.0
+      },
+      "bridge_unified_contract_no_to_contracts": {
+        "total": 40677,
+        "matched": 40677,
+        "unmatched": 0,
+        "coverage_ratio": 1.0
+      }
+    }
   },
   "table_metrics": {
     "tenders": {
@@ -32,7 +116,8 @@
       "is_pk_unique": true,
       "temporal_fk_in_scope_count": 1569500,
       "temporal_fk_out_of_scope_count": 538448,
-      "temporal_fk_coverage_ratio": 0.7446
+      "temporal_fk_coverage_ratio": 0.7446,
+      "temporal_fk_label": "TEMPORAL_SCOPE_UNMATCHED rows are expected cross-period records, not data errors"
     },
     "award_outcomes": {
       "row_count": 17315,
@@ -44,8 +129,10 @@
       "temporal_fk_in_scope_count": 12918,
       "temporal_fk_out_of_scope_count": 4397,
       "temporal_fk_coverage_ratio": 0.7461,
+      "temporal_fk_label": "TEMPORAL_SCOPE_UNMATCHED rows are expected cross-period records, not data errors",
       "award_amount_krw_null_count": 24,
-      "award_amount_krw_null_ratio": 0.001386
+      "award_amount_krw_null_ratio": 0.001386,
+      "award_amount_null_cause": "OBSERVED: NULL present in raw API snapshot for 24 winning entries. Cause is unfinalized post-opening adjudication at collection time. Labeled OBSERVED, not INFERRED administrative cause."
     },
     "contracts": {
       "row_count": 115945,
@@ -63,7 +150,12 @@
       "is_pk_unique": true,
       "bidders_count": 123777,
       "winners_count": 13374,
-      "contractors_count": 59233
+      "contractors_count": 59233,
+      "name_conflict_count": 6,
+      "name_resolution_policy": "most_frequent_normalized_name_with_lex_tiebreak",
+      "snapshot_stats_note": "snapshot_total_* columns are time-window aggregates only; NOT stable identity; must NOT be used as leak-free historical ML features",
+      "masked_biz_no_excluded": true,
+      "privacy_note": "supplier_id is sole public identity; company names require final privacy/license review before Kaggle publication"
     },
     "agencies": {
       "row_count": 14091,
@@ -73,7 +165,10 @@
       "is_pk_unique": true,
       "notice_agencies_count": 5690,
       "demand_agencies_count": 14079,
-      "contract_agencies_count": 12347
+      "contract_agencies_count": 12347,
+      "name_conflict_count": 0,
+      "name_resolution_policy": "most_frequent_normalized_name_with_lex_tiebreak",
+      "snapshot_stats_note": "snapshot_total_* columns are time-window aggregates only; NOT stable identity; must NOT be used as leak-free historical ML features"
     },
     "tender_contract_bridge": {
       "row_count": 40677,
@@ -83,12 +178,14 @@
       "is_pk_unique": true,
       "temporal_fk_in_scope_count": 9138,
       "temporal_fk_out_of_scope_count": 31539,
-      "temporal_fk_coverage_ratio": 0.2246
+      "temporal_fk_coverage_ratio": 0.2246,
+      "temporal_fk_label": "TEMPORAL_SCOPE_UNMATCHED rows are expected cross-period records, not data errors"
     }
   },
   "award_amount_null_forensics": {
     "null_count": 24,
     "null_ratio": 0.001386,
+    "cause_classification": "OBSERVED",
     "rank_distribution": {
       "1.0": 23,
       "19.0": 1
@@ -104,48 +201,118 @@
   "storage": {
     "tenders": {
       "file_name": "01_tenders.parquet",
-      "bytes": 2084037,
-      "mib": 1.99,
-      "mb": 2.08
+      "bytes": 2181481,
+      "mib": 2.08,
+      "mb": 2.18
     },
     "bidder_submissions": {
       "file_name": "02_bidder_submissions.parquet",
-      "bytes": 100861029,
-      "mib": 96.19,
-      "mb": 100.86
+      "bytes": 159558644,
+      "mib": 152.17,
+      "mb": 159.56
     },
     "award_outcomes": {
       "file_name": "03_award_outcomes.parquet",
-      "bytes": 2102572,
-      "mib": 2.01,
-      "mb": 2.1
+      "bytes": 2194755,
+      "mib": 2.09,
+      "mb": 2.19
     },
     "contracts": {
       "file_name": "04_contracts.parquet",
-      "bytes": 10702406,
-      "mib": 10.21,
-      "mb": 10.7
+      "bytes": 9557394,
+      "mib": 9.11,
+      "mb": 9.56
     },
     "suppliers": {
       "file_name": "05_suppliers.parquet",
-      "bytes": 4572613,
-      "mib": 4.36,
-      "mb": 4.57
+      "bytes": 4368486,
+      "mib": 4.17,
+      "mb": 4.37
     },
     "agencies": {
       "file_name": "06_agencies.parquet",
-      "bytes": 224823,
+      "bytes": 224959,
       "mib": 0.21,
       "mb": 0.22
     },
     "tender_contract_bridge": {
       "file_name": "07_tender_contract_bridge.parquet",
-      "bytes": 743635,
-      "mib": 0.71,
-      "mb": 0.74
+      "bytes": 692031,
+      "mib": 0.66,
+      "mb": 0.69
     },
-    "total_curated_bytes": 121291115,
-    "total_curated_mib": 115.67,
-    "total_curated_mb": 121.29
+    "total_curated_bytes": 178777750,
+    "total_curated_mib": 170.5,
+    "total_curated_mb": 178.78
+  },
+  "fk_coverage": {
+    "submissions_bidder_supplier_id_to_suppliers": {
+      "total": 2101308,
+      "matched": 2101308,
+      "unmatched": 0,
+      "coverage_ratio": 1.0
+    },
+    "awards_winner_supplier_id_to_suppliers": {
+      "total": 17315,
+      "matched": 17315,
+      "unmatched": 0,
+      "coverage_ratio": 1.0
+    },
+    "contracts_contractor_supplier_id_to_suppliers": {
+      "total": 115944,
+      "matched": 115944,
+      "unmatched": 0,
+      "coverage_ratio": 1.0
+    },
+    "tenders_notice_agency_code_to_agencies": {
+      "total": 32895,
+      "matched": 32895,
+      "unmatched": 0,
+      "coverage_ratio": 1.0
+    },
+    "submissions_notice_agency_code_to_agencies": {
+      "total": 2107948,
+      "matched": 2099304,
+      "unmatched": 8644,
+      "coverage_ratio": 0.9959
+    },
+    "tenders_demand_agency_code_to_agencies": {
+      "total": 32895,
+      "matched": 32895,
+      "unmatched": 0,
+      "coverage_ratio": 1.0
+    },
+    "submissions_demand_agency_code_to_agencies": {
+      "total": 2107948,
+      "matched": 2099124,
+      "unmatched": 8824,
+      "coverage_ratio": 0.9958
+    },
+    "contracts_demand_agency_code_to_agencies": {
+      "total": 115945,
+      "matched": 115945,
+      "unmatched": 0,
+      "coverage_ratio": 1.0
+    },
+    "contracts_contract_agency_code_to_agencies": {
+      "total": 115945,
+      "matched": 115945,
+      "unmatched": 0,
+      "coverage_ratio": 1.0
+    },
+    "bridge_unified_contract_no_to_contracts": {
+      "total": 40677,
+      "matched": 40677,
+      "unmatched": 0,
+      "coverage_ratio": 1.0
+    }
+  },
+  "name_resolution": {
+    "supplier_name_conflict_count": 6,
+    "agency_name_conflict_count": 0
+  },
+  "forbidden_column_validation": {
+    "passed": true,
+    "violations": []
   }
 }

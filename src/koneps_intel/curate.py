@@ -3,6 +3,11 @@
 Transforms cleaned and typed monthly Parquet data into 7 normalized,
 relational curated tables with deterministic surrogate PKs, temporal FK tracking,
 strict privacy preservation (no raw PII/biz nos), and mathematical reconciliation gates.
+
+Privacy policy: raw business registration numbers and direct contact fields are
+excluded from all publishable curated output. Supplier public identity is
+supplier_id only. Company names may remain in curated tables only after final
+privacy and licensing review prior to Kaggle publication.
 """
 from __future__ import annotations
 
@@ -11,6 +16,7 @@ import json
 import logging
 import os
 import re
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -24,8 +30,65 @@ from koneps_intel.config import PROCESSED_DIR
 from koneps_intel.privacy import generate_supplier_id
 from koneps_intel.utils import get_logger
 
-CURATED_SCHEMA_VERSION = "1.0.0"
+CURATED_SCHEMA_VERSION = "1.1.0"
 logger = get_logger("koneps_intel.curate")
+
+
+class _NumpyEncoder(json.JSONEncoder):
+    """JSON encoder that safely serializes numpy scalar types produced by pandas."""
+
+    def default(self, obj: Any) -> Any:
+        if isinstance(obj, (np.bool_,)):
+            return bool(obj)
+        if isinstance(obj, (np.integer,)):
+            return int(obj)
+        if isinstance(obj, (np.floating,)):
+            return float(obj)
+        return super().default(obj)
+
+
+# ---------------------------------------------------------------------------
+# Forbidden column patterns: raw biz-reg-no, direct contact, representative
+# ---------------------------------------------------------------------------
+_FORBIDDEN_COLUMN_PATTERNS = [
+    # Raw business registration number columns (the raw un-masked number itself)
+    re.compile(r"(?<![a-z_])business_registration_no", re.IGNORECASE),
+    re.compile(r"(?<![a-z_])biz_no$", re.IGNORECASE),
+    re.compile(r"(?<![a-z_])bizno$", re.IGNORECASE),
+    re.compile(r"^biz_reg", re.IGNORECASE),
+    # Direct phone/email/fax/mobile contact fields
+    re.compile(r"^phone_|^tel_|^fax_|^mobile_|^email_", re.IGNORECASE),
+    re.compile(r"_phone$|_tel$|_fax$|_mobile$|_email$", re.IGNORECASE),
+    # Representative / CEO name fields (not "contractor" which is a business role)
+    re.compile(r"^representative_name|^ceo_name|^president_name", re.IGNORECASE),
+    # masked_biz_no is also excluded from publishable output
+    re.compile(r"^masked_biz_no$", re.IGNORECASE),
+]
+
+# Identifier columns that must remain string dtype; monetary columns that must be numeric
+_IDENTIFIER_COLUMNS = {
+    "bid_submission_id", "award_outcome_id", "supplier_id", "agency_code",
+    "unified_contract_no", "bid_notice_no", "bid_notice_round", "contract_no",
+    "bidder_supplier_id", "winner_supplier_id", "contractor_supplier_id",
+}
+_MONETARY_COLUMNS = {
+    "bid_amount_krw", "award_amount_krw", "contract_amount_krw",
+    "total_contract_amount_krw", "assigned_budget_krw", "estimated_price_krw",
+    "scheduled_price_krw", "base_amount_krw", "total_contract_amount_krw",
+}
+
+# Snapshot statistics in supplier/agency dimensions — time-window aggregates only,
+# NOT stable identity attributes. Must not be used as leak-free historical ML features.
+SUPPLIER_SNAPSHOT_STATS = [
+    "snapshot_total_bids_in_scope",
+    "snapshot_total_wins_in_scope",
+    "snapshot_total_contracts_in_scope",
+    "snapshot_total_contract_amount_krw",
+]
+AGENCY_SNAPSHOT_STATS = [
+    "snapshot_total_tenders_in_scope",
+    "snapshot_total_contracts_in_scope",
+]
 
 
 def mask_biz_no(biz_no: str) -> str:
@@ -34,6 +97,16 @@ def mask_biz_no(biz_no: str) -> str:
     if len(clean) == 10 and clean.isdigit():
         return f"{clean[:3]}-{clean[3:5]}-*****"
     return ""
+
+
+# ---------------------------------------------------------------------------
+# Canonical surrogate key serialization
+# Replaces ambiguous pipe-concatenation. Same semantic row → same ID always.
+# ---------------------------------------------------------------------------
+
+def _canonical_json(d: Dict[str, Any]) -> bytes:
+    """Serialize a dict to a deterministic UTF-8 JSON bytes with sorted keys."""
+    return json.dumps(d, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
 
 def generate_bid_submission_id(
@@ -45,20 +118,33 @@ def generate_bid_submission_id(
     bid_amount_krw: Any,
     bid_submission_time: Any,
 ) -> str:
-    """Generate deterministic BID_<32 hex> surrogate primary key from public-safe reconciliation grain."""
-    rank_str = f"{float(opening_rank):.0f}" if pd.notna(opening_rank) and str(opening_rank).strip() != "" else "NULL"
-    amt_str = f"{float(bid_amount_krw):.2f}" if pd.notna(bid_amount_krw) and str(bid_amount_krw).strip() != "" else "NULL"
-    parts = [
-        str(bid_notice_no or "").strip(),
-        str(bid_notice_round or "").strip(),
-        str(bidder_supplier_id or "").strip(),
-        rank_str,
-        str(disqualification_reason or "").strip(),
-        amt_str,
-        str(bid_submission_time or "").strip(),
-    ]
-    canonical = "|".join(parts)
-    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    """Generate deterministic BID_<32 hex> surrogate primary key.
+
+    Uses structured canonical JSON serialization so that same semantic row always
+    produces the same ID regardless of field order or future separator changes.
+    NULL sentinel is the explicit string "__NULL__" to distinguish from empty string.
+    """
+    def _num_or_null(v: Any, fmt: str) -> str:
+        if v is None or (isinstance(v, float) and np.isnan(v)):
+            return "__NULL__"
+        try:
+            return fmt % float(v)
+        except (TypeError, ValueError):
+            s = str(v).strip()
+            return s if s else "__NULL__"
+
+    record = {
+        "entity": "bid_submission",
+        "version": 1,
+        "bid_notice_no": str(bid_notice_no or "").strip() or "__NULL__",
+        "bid_notice_round": str(bid_notice_round or "").strip() or "__NULL__",
+        "bidder_supplier_id": str(bidder_supplier_id or "").strip() or "__NULL__",
+        "opening_rank": _num_or_null(opening_rank, "%.0f"),
+        "disqualification_reason": str(disqualification_reason or "").strip() if disqualification_reason else "__NULL__",
+        "bid_amount_krw": _num_or_null(bid_amount_krw, "%.2f"),
+        "bid_submission_time": str(bid_submission_time or "").strip() or "__NULL__",
+    }
+    digest = hashlib.sha256(_canonical_json(record)).hexdigest()
     return f"BID_{digest[:32]}"
 
 
@@ -67,29 +153,41 @@ def compute_bid_submission_ids(
     bidder_supplier_ids: pd.Series,
 ) -> pd.Series:
     """Vectorized computation of deterministic BID_<32 hex> surrogate primary keys."""
-    rank_str = df["opening_rank"].apply(
-        lambda x: f"{float(x):.0f}" if pd.notna(x) and str(x).strip() != "" else "NULL"
-    )
-    amt_str = df["bid_amount_krw"].apply(
-        lambda x: f"{float(x):.2f}" if pd.notna(x) and str(x).strip() != "" else "NULL"
-    )
-    disq_str = df["disqualification_reason_ko"].fillna("").astype(str).str.strip() if "disqualification_reason_ko" in df.columns else pd.Series([""] * len(df), index=df.index)
-    time_str = df["bid_submission_time"].fillna("").astype(str).str.strip() if "bid_submission_time" in df.columns else pd.Series([""] * len(df), index=df.index)
 
-    canonical = (
-        df["bid_notice_no"].fillna("").astype(str).str.strip() + "|" +
-        df["bid_notice_round"].fillna("").astype(str).str.strip() + "|" +
-        bidder_supplier_ids.fillna("").astype(str).str.strip() + "|" +
-        rank_str + "|" +
-        disq_str + "|" +
-        amt_str + "|" +
-        time_str
-    )
+    def _num_or_null_scalar(v: Any, fmt: str) -> str:
+        if v is None or (isinstance(v, float) and np.isnan(v)):
+            return "__NULL__"
+        try:
+            return fmt % float(v)
+        except (TypeError, ValueError):
+            s = str(v).strip()
+            return s if s else "__NULL__"
+
+    def _str_or_null(v: Any) -> str:
+        s = str(v).strip() if v is not None and not (isinstance(v, float) and np.isnan(v)) else ""
+        return s if s else "__NULL__"
+
     h = hashlib.sha256
-    return pd.Series(
-        ["BID_" + h(x.encode("utf-8")).hexdigest()[:32] for x in canonical],
-        index=df.index,
-    )
+    ids = []
+    rank_col = df["opening_rank"] if "opening_rank" in df.columns else pd.Series([None] * len(df), index=df.index)
+    disq_col = df["disqualification_reason_ko"] if "disqualification_reason_ko" in df.columns else pd.Series([None] * len(df), index=df.index)
+    amt_col = df["bid_amount_krw"] if "bid_amount_krw" in df.columns else pd.Series([None] * len(df), index=df.index)
+    time_col = df["bid_submission_time"] if "bid_submission_time" in df.columns else pd.Series([None] * len(df), index=df.index)
+
+    for i in range(len(df)):
+        record = {
+            "entity": "bid_submission",
+            "version": 1,
+            "bid_notice_no": _str_or_null(df["bid_notice_no"].iloc[i]),
+            "bid_notice_round": _str_or_null(df["bid_notice_round"].iloc[i]),
+            "bidder_supplier_id": _str_or_null(bidder_supplier_ids.iloc[i]),
+            "opening_rank": _num_or_null_scalar(rank_col.iloc[i], "%.0f"),
+            "disqualification_reason": _str_or_null(disq_col.iloc[i]),
+            "bid_amount_krw": _num_or_null_scalar(amt_col.iloc[i], "%.2f"),
+            "bid_submission_time": _str_or_null(time_col.iloc[i]),
+        }
+        ids.append("BID_" + h(_canonical_json(record)).hexdigest()[:32])
+    return pd.Series(ids, index=df.index)
 
 
 def generate_award_outcome_id(
@@ -99,17 +197,33 @@ def generate_award_outcome_id(
     award_amount_krw: Any,
     bid_submission_time: Any,
 ) -> str:
-    """Generate deterministic AWD_<32 hex> surrogate primary key from public-safe reconciliation grain."""
-    amt_str = f"{float(award_amount_krw):.2f}" if pd.notna(award_amount_krw) and str(award_amount_krw).strip() != "" else "NULL"
-    parts = [
-        str(bid_notice_no or "").strip(),
-        str(bid_notice_round or "").strip(),
-        str(winner_supplier_id or "").strip(),
-        amt_str,
-        str(bid_submission_time or "").strip(),
-    ]
-    canonical = "|".join(parts)
-    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    """Generate deterministic AWD_<32 hex> surrogate primary key.
+
+    Uses structured canonical JSON serialization.
+    """
+    def _num_or_null(v: Any, fmt: str) -> str:
+        if v is None or (isinstance(v, float) and np.isnan(v)):
+            return "__NULL__"
+        try:
+            return fmt % float(v)
+        except (TypeError, ValueError):
+            s = str(v).strip()
+            return s if s else "__NULL__"
+
+    def _str_or_null(v: Any) -> str:
+        s = str(v or "").strip()
+        return s if s else "__NULL__"
+
+    record = {
+        "entity": "award_outcome",
+        "version": 1,
+        "bid_notice_no": _str_or_null(bid_notice_no),
+        "bid_notice_round": _str_or_null(bid_notice_round),
+        "winner_supplier_id": _str_or_null(winner_supplier_id),
+        "award_amount_krw": _num_or_null(award_amount_krw, "%.2f"),
+        "bid_submission_time": _str_or_null(bid_submission_time),
+    }
+    digest = hashlib.sha256(_canonical_json(record)).hexdigest()
     return f"AWD_{digest[:32]}"
 
 
@@ -118,24 +232,89 @@ def compute_award_outcome_ids(
     winner_supplier_ids: pd.Series,
 ) -> pd.Series:
     """Vectorized computation of deterministic AWD_<32 hex> surrogate primary keys."""
-    amt_str = df["award_amount_krw"].apply(
-        lambda x: f"{float(x):.2f}" if pd.notna(x) and str(x).strip() != "" else "NULL"
-    )
-    time_str = df["bid_submission_time"].fillna("").astype(str).str.strip() if "bid_submission_time" in df.columns else pd.Series([""] * len(df), index=df.index)
 
-    canonical = (
-        df["bid_notice_no"].fillna("").astype(str).str.strip() + "|" +
-        df["bid_notice_round"].fillna("").astype(str).str.strip() + "|" +
-        winner_supplier_ids.fillna("").astype(str).str.strip() + "|" +
-        amt_str + "|" +
-        time_str
-    )
+    def _num_or_null_scalar(v: Any, fmt: str) -> str:
+        if v is None or (isinstance(v, float) and np.isnan(v)):
+            return "__NULL__"
+        try:
+            return fmt % float(v)
+        except (TypeError, ValueError):
+            s = str(v).strip()
+            return s if s else "__NULL__"
+
+    def _str_or_null(v: Any) -> str:
+        s = str(v).strip() if v is not None and not (isinstance(v, float) and np.isnan(v)) else ""
+        return s if s else "__NULL__"
+
     h = hashlib.sha256
-    return pd.Series(
-        ["AWD_" + h(x.encode("utf-8")).hexdigest()[:32] for x in canonical],
-        index=df.index,
-    )
+    ids = []
+    amt_col = df["award_amount_krw"] if "award_amount_krw" in df.columns else pd.Series([None] * len(df), index=df.index)
+    time_col = df["bid_submission_time"] if "bid_submission_time" in df.columns else pd.Series([None] * len(df), index=df.index)
 
+    for i in range(len(df)):
+        record = {
+            "entity": "award_outcome",
+            "version": 1,
+            "bid_notice_no": _str_or_null(df["bid_notice_no"].iloc[i]),
+            "bid_notice_round": _str_or_null(df["bid_notice_round"].iloc[i]),
+            "winner_supplier_id": _str_or_null(winner_supplier_ids.iloc[i]),
+            "award_amount_krw": _num_or_null_scalar(amt_col.iloc[i], "%.2f"),
+            "bid_submission_time": _str_or_null(time_col.iloc[i]),
+        }
+        ids.append("AWD_" + h(_canonical_json(record)).hexdigest()[:32])
+    return pd.Series(ids, index=df.index)
+
+
+# ---------------------------------------------------------------------------
+# Name resolution helpers: most-frequent, whitespace-normalised, lex tiebreak
+# ---------------------------------------------------------------------------
+
+def _normalize_name(name: Any) -> str:
+    """Trim and collapse internal whitespace in a name string."""
+    if name is None or (isinstance(name, float) and np.isnan(name)):
+        return ""
+    s = " ".join(str(name).split())
+    return s
+
+
+def _resolve_names_most_frequent(
+    keys: pd.Series,
+    names: pd.Series,
+) -> Tuple[Dict[str, str], int]:
+    """For each key, choose the most frequent non-blank normalized name.
+
+    Returns a (key→name) dict and the total number of name conflicts detected.
+    A conflict is any key with >1 distinct non-blank name observed.
+    Tiebreak: lexicographically smallest name among most-frequent candidates.
+    """
+    # Build frequency counts per (key, normalized_name)
+    freq: Dict[str, Counter] = {}
+    for k, n in zip(keys, names):
+        k_str = str(k).strip() if k is not None else ""
+        if not k_str:
+            continue
+        n_norm = _normalize_name(n)
+        if not n_norm:
+            continue
+        if k_str not in freq:
+            freq[k_str] = Counter()
+        freq[k_str][n_norm] += 1
+
+    result: Dict[str, str] = {}
+    conflict_count = 0
+    for k, counter in freq.items():
+        distinct = list(counter.keys())
+        if len(distinct) > 1:
+            conflict_count += 1
+        max_count = max(counter.values())
+        top = sorted([nm for nm, cnt in counter.items() if cnt == max_count])
+        result[k] = top[0]  # lex smallest among most-frequent
+    return result, conflict_count
+
+
+# ---------------------------------------------------------------------------
+# Table builders
+# ---------------------------------------------------------------------------
 
 def build_curated_tenders(df_bids: pd.DataFrame) -> pd.DataFrame:
     """Build 01_tenders table with natural PK (bid_notice_no, bid_notice_round)."""
@@ -177,7 +356,8 @@ def build_curated_tenders(df_bids: pd.DataFrame) -> pd.DataFrame:
     res = df_bids[present_cols].copy()
     res["bid_notice_no"] = res["bid_notice_no"].astype(str).str.strip()
     res["bid_notice_round"] = res["bid_notice_round"].astype(str).str.strip()
-    return res
+    # Deterministic sort
+    return res.sort_values(["bid_notice_no", "bid_notice_round"]).reset_index(drop=True)
 
 
 def build_curated_bidder_submissions(
@@ -230,7 +410,8 @@ def build_curated_bidder_submissions(
         "award_lower_limit_rate": df_awards["award_lower_limit_rate"] if "award_lower_limit_rate" in df_awards.columns else np.nan,
         "data_base_date": df_awards["data_base_date"].fillna("") if "data_base_date" in df_awards.columns else "",
     })
-    return res
+    # Deterministic sort
+    return res.sort_values(["bid_submission_id"]).reset_index(drop=True)
 
 
 def build_curated_award_outcomes(
@@ -282,7 +463,8 @@ def build_curated_award_outcomes(
         "award_lower_limit_rate": winners_df["award_lower_limit_rate"] if "award_lower_limit_rate" in winners_df.columns else np.nan,
         "data_base_date": winners_df["data_base_date"].fillna("") if "data_base_date" in winners_df.columns else "",
     })
-    return res
+    # Deterministic sort
+    return res.sort_values(["award_outcome_id"]).reset_index(drop=True)
 
 
 def build_curated_contracts(
@@ -323,15 +505,24 @@ def build_curated_contracts(
         "bid_notice_url": df_contracts["bid_notice_url"].fillna("").astype(str).str.strip() if "bid_notice_url" in df_contracts.columns else "",
         "data_base_date": df_contracts["data_base_date"].fillna("").astype(str).str.strip() if "data_base_date" in df_contracts.columns else "",
     })
-    return res
+    # Deterministic sort
+    return res.sort_values(["unified_contract_no"]).reset_index(drop=True)
 
 
 def build_curated_suppliers(
     df_awards: pd.DataFrame,
     df_contracts: pd.DataFrame,
     hmac_key: bytes,
-) -> pd.DataFrame:
-    """Build 05_suppliers dimension table with PK supplier_id."""
+) -> Tuple[pd.DataFrame, int]:
+    """Build 05_suppliers dimension table with PK supplier_id.
+
+    Returns (DataFrame, name_conflict_count) where name_conflict_count is the
+    number of biz_nos that had >1 distinct name observed (aggregate metric only).
+    Snapshot statistics are prefixed with 'snapshot_' to signal they must NOT be
+    used as stable identity or leak-free ML features.
+    Public supplier identity = supplier_id only. masked_biz_no is excluded.
+    Company names remain but require final privacy/license review before Kaggle publication.
+    """
     bidder_biz = clean_biz_no(df_awards["bidder_business_registration_no"]) if not df_awards.empty else pd.Series([], dtype=str)
     winner_biz = clean_biz_no(df_awards[df_awards["is_selected_winner"] == True]["winner_business_registration_no"]) if not df_awards.empty else pd.Series([], dtype=str)
     cnt_biz = clean_biz_no(df_contracts["contractor_business_registration_no"]) if not df_contracts.empty else pd.Series([], dtype=str)
@@ -342,33 +533,39 @@ def build_curated_suppliers(
 
     all_10 = sorted(list(bidders_10 | winners_10 | contractors_10))
 
-    # Collect best available name per biz_no
-    name_map: Dict[str, str] = {}
+    # Collect names from all sources, then resolve via most-frequent / lex-tiebreak
+    all_keys: List[str] = []
+    all_names: List[str] = []
+
     if not df_contracts.empty:
         c_names = df_contracts["contractor_name_ko"] if "contractor_name_ko" in df_contracts.columns else pd.Series([""] * len(df_contracts), index=df_contracts.index)
-        for b, n in zip(cnt_biz, c_names.fillna("").astype(str)):
-            b_clean = b.strip()
-            n_clean = n.strip()
-            if len(b_clean) == 10 and n_clean and b_clean not in name_map:
-                name_map[b_clean] = n_clean
+        for b, n in zip(cnt_biz, c_names):
+            b_clean = str(b).strip() if b else ""
+            if len(b_clean) == 10:
+                all_keys.append(b_clean)
+                all_names.append(str(n) if n is not None else "")
 
     if not df_awards.empty:
         w_df = df_awards[df_awards["is_selected_winner"] == True]
         w_names = w_df["winner_name_ko"] if "winner_name_ko" in w_df.columns else pd.Series([""] * len(w_df), index=w_df.index)
-        for b, n in zip(clean_biz_no(w_df["winner_business_registration_no"]), w_names.fillna("").astype(str)):
-            b_clean = b.strip()
-            n_clean = n.strip()
-            if len(b_clean) == 10 and n_clean and b_clean not in name_map:
-                name_map[b_clean] = n_clean
+        for b, n in zip(clean_biz_no(w_df["winner_business_registration_no"]), w_names):
+            b_clean = str(b).strip() if b else ""
+            if len(b_clean) == 10:
+                all_keys.append(b_clean)
+                all_names.append(str(n) if n is not None else "")
 
         b_names = df_awards["bidder_name_ko"] if "bidder_name_ko" in df_awards.columns else pd.Series([""] * len(df_awards), index=df_awards.index)
-        for b, n in zip(bidder_biz, b_names.fillna("").astype(str)):
-            b_clean = b.strip()
-            n_clean = n.strip()
-            if len(b_clean) == 10 and n_clean and b_clean not in name_map:
-                name_map[b_clean] = n_clean
+        for b, n in zip(bidder_biz, b_names):
+            b_clean = str(b).strip() if b else ""
+            if len(b_clean) == 10:
+                all_keys.append(b_clean)
+                all_names.append(str(n) if n is not None else "")
 
-    # Pre-calculate counts and totals
+    name_map, conflict_count = _resolve_names_most_frequent(
+        pd.Series(all_keys), pd.Series(all_names)
+    )
+
+    # Pre-calculate snapshot statistics (time-window aggregates)
     bid_counts = bidder_biz[bidder_biz.str.len() == 10].value_counts().to_dict()
     win_counts = winner_biz[winner_biz.str.len() == 10].value_counts().to_dict()
     contract_counts = cnt_biz[cnt_biz.str.len() == 10].value_counts().to_dict()
@@ -385,68 +582,104 @@ def build_curated_suppliers(
         rows.append({
             "supplier_id": sid,
             "supplier_name_ko": name_map.get(b, ""),
-            "masked_biz_no": mask_biz_no(b),
+            # NOTE: masked_biz_no removed from publishable output (no demonstrated analytical requirement).
+            # supplier_id is the sole public identity.
             "is_bidder": b in bidders_10,
             "is_winner": b in winners_10,
             "is_contractor": b in contractors_10,
-            "total_bids_in_scope": int(bid_counts.get(b, 0)),
-            "total_wins_in_scope": int(win_counts.get(b, 0)),
-            "total_contracts_in_scope": int(contract_counts.get(b, 0)),
-            "total_contract_amount_krw": float(contract_amt_dict.get(b, 0.0)),
+            # Snapshot statistics: time-window aggregates, NOT stable identity attributes.
+            # Must NOT be used as leak-free historical ML features.
+            "snapshot_total_bids_in_scope": int(bid_counts.get(b, 0)),
+            "snapshot_total_wins_in_scope": int(win_counts.get(b, 0)),
+            "snapshot_total_contracts_in_scope": int(contract_counts.get(b, 0)),
+            "snapshot_total_contract_amount_krw": float(contract_amt_dict.get(b, 0.0)),
         })
 
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    # Deterministic sort
+    if not df.empty:
+        df = df.sort_values(["supplier_id"]).reset_index(drop=True)
+    return df, conflict_count
 
 
 def build_curated_agencies(
     df_bids: pd.DataFrame,
     df_contracts: pd.DataFrame,
-) -> pd.DataFrame:
-    """Build 06_agencies dimension table with PK agency_code."""
-    names: Dict[str, str] = {}
+) -> Tuple[pd.DataFrame, int]:
+    """Build 06_agencies dimension table with PK agency_code.
 
-    def _ingest_pairs(codes: pd.Series, nms: pd.Series):
-        for c, n in zip(codes.dropna().astype(str), nms.dropna().astype(str)):
+    Returns (DataFrame, name_conflict_count).
+    Snapshot statistics are prefixed with 'snapshot_' to signal they must NOT
+    be used as stable identity or leak-free historical ML features.
+    """
+    # Collect all code/name pairs from all sources
+    all_keys: List[str] = []
+    all_names: List[str] = []
+
+    def _collect(codes: pd.Series, names: pd.Series) -> None:
+        for c, n in zip(codes.fillna("").astype(str), names.fillna("").astype(str)):
             c_clean = c.strip()
-            n_clean = n.strip()
-            if c_clean and n_clean and c_clean not in names:
-                names[c_clean] = n_clean
+            if c_clean:
+                all_keys.append(c_clean)
+                all_names.append(n.strip())
 
-    bids_ntce = set(df_bids["notice_agency_code"].dropna().astype(str).str.strip().loc[lambda x: x != ""]) if not df_bids.empty and "notice_agency_code" in df_bids.columns else set()
-    bids_dmnd = set(df_bids["demand_agency_code"].dropna().astype(str).str.strip().loc[lambda x: x != ""]) if not df_bids.empty and "demand_agency_code" in df_bids.columns else set()
-    cnt_inst = set(df_contracts["contract_agency_code"].dropna().astype(str).str.strip().loc[lambda x: x != ""]) if not df_contracts.empty and "contract_agency_code" in df_contracts.columns else set()
-    cnt_dmnd = set(df_contracts["demand_agency_code"].dropna().astype(str).str.strip().loc[lambda x: x != ""]) if not df_contracts.empty and "demand_agency_code" in df_contracts.columns else set()
+    bids_ntce: Set[str] = set()
+    bids_dmnd: Set[str] = set()
+    cnt_inst: Set[str] = set()
+    cnt_dmnd: Set[str] = set()
 
     if not df_bids.empty:
+        if "notice_agency_code" in df_bids.columns:
+            bids_ntce = set(df_bids["notice_agency_code"].dropna().astype(str).str.strip().loc[lambda x: x != ""])
+        if "demand_agency_code" in df_bids.columns:
+            bids_dmnd = set(df_bids["demand_agency_code"].dropna().astype(str).str.strip().loc[lambda x: x != ""])
         if "notice_agency_code" in df_bids.columns and "notice_agency_name_ko" in df_bids.columns:
-            _ingest_pairs(df_bids["notice_agency_code"], df_bids["notice_agency_name_ko"])
+            _collect(df_bids["notice_agency_code"], df_bids["notice_agency_name_ko"])
         if "demand_agency_code" in df_bids.columns and "demand_agency_name_ko" in df_bids.columns:
-            _ingest_pairs(df_bids["demand_agency_code"], df_bids["demand_agency_name_ko"])
+            _collect(df_bids["demand_agency_code"], df_bids["demand_agency_name_ko"])
+
     if not df_contracts.empty:
+        if "contract_agency_code" in df_contracts.columns:
+            cnt_inst = set(df_contracts["contract_agency_code"].dropna().astype(str).str.strip().loc[lambda x: x != ""])
+        if "demand_agency_code" in df_contracts.columns:
+            cnt_dmnd = set(df_contracts["demand_agency_code"].dropna().astype(str).str.strip().loc[lambda x: x != ""])
         if "contract_agency_code" in df_contracts.columns and "contract_agency_name_ko" in df_contracts.columns:
-            _ingest_pairs(df_contracts["contract_agency_code"], df_contracts["contract_agency_name_ko"])
+            _collect(df_contracts["contract_agency_code"], df_contracts["contract_agency_name_ko"])
         if "demand_agency_code" in df_contracts.columns and "demand_agency_name_ko" in df_contracts.columns:
-            _ingest_pairs(df_contracts["demand_agency_code"], df_contracts["demand_agency_name_ko"])
+            _collect(df_contracts["demand_agency_code"], df_contracts["demand_agency_name_ko"])
+
+    name_map, conflict_count = _resolve_names_most_frequent(
+        pd.Series(all_keys), pd.Series(all_names)
+    )
 
     all_codes = sorted(list(bids_ntce | bids_dmnd | cnt_inst | cnt_dmnd))
 
-    # Compute activity counts
-    bids_cnt = df_bids["notice_agency_code"].dropna().astype(str).str.strip().value_counts().to_dict() if not df_bids.empty else {}
-    cnt_cnt = df_contracts["contract_agency_code"].dropna().astype(str).str.strip().value_counts().to_dict() if not df_contracts.empty else {}
+    # Snapshot statistics
+    bids_cnt: Dict[str, int] = {}
+    cnt_cnt: Dict[str, int] = {}
+    if not df_bids.empty and "notice_agency_code" in df_bids.columns:
+        bids_cnt = df_bids["notice_agency_code"].dropna().astype(str).str.strip().value_counts().to_dict()
+    if not df_contracts.empty and "contract_agency_code" in df_contracts.columns:
+        cnt_cnt = df_contracts["contract_agency_code"].dropna().astype(str).str.strip().value_counts().to_dict()
 
     rows = []
     for c in all_codes:
         rows.append({
             "agency_code": c,
-            "agency_name_ko": names.get(c, ""),
+            "agency_name_ko": name_map.get(c, ""),
             "is_notice_agency": c in bids_ntce,
             "is_demand_agency": (c in bids_dmnd) or (c in cnt_dmnd),
             "is_contract_agency": c in cnt_inst,
-            "total_tenders_in_scope": int(bids_cnt.get(c, 0)),
-            "total_contracts_in_scope": int(cnt_cnt.get(c, 0)),
+            # Snapshot statistics: time-window aggregates, NOT stable identity attributes.
+            "snapshot_total_tenders_in_scope": int(bids_cnt.get(c, 0)),
+            "snapshot_total_contracts_in_scope": int(cnt_cnt.get(c, 0)),
         })
 
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    # Deterministic sort
+    if not df.empty:
+        df = df.sort_values(["agency_code"]).reset_index(drop=True)
+    return df, conflict_count
 
 
 def build_curated_bridge(
@@ -471,14 +704,50 @@ def build_curated_bridge(
         "contract_date": linked["contract_date"] if "contract_date" in linked.columns else None,
         "contract_amount_krw": linked["contract_amount_krw"] if "contract_amount_krw" in linked.columns else np.nan,
     })
-    return res
+    # Deterministic sort
+    return res.sort_values(["unified_contract_no"]).reset_index(drop=True)
+
+
+# ---------------------------------------------------------------------------
+# Validation gates
+# ---------------------------------------------------------------------------
+
+def _check_forbidden_columns(name: str, df: pd.DataFrame) -> List[str]:
+    """Return list of forbidden column violations in a table."""
+    violations = []
+    for col in df.columns:
+        for pat in _FORBIDDEN_COLUMN_PATTERNS:
+            if pat.search(col):
+                violations.append(f"{name}.{col}")
+                break
+    return violations
+
+
+def _check_dtype_constraints(name: str, df: pd.DataFrame) -> List[str]:
+    """Return list of dtype constraint violations."""
+    violations = []
+    for col in df.columns:
+        if col in _IDENTIFIER_COLUMNS:
+            if not pd.api.types.is_string_dtype(df[col]) and not pd.api.types.is_object_dtype(df[col]):
+                violations.append(f"{name}.{col}: expected string dtype, got {df[col].dtype}")
+        if col in _MONETARY_COLUMNS:
+            if not pd.api.types.is_numeric_dtype(df[col]):
+                violations.append(f"{name}.{col}: expected numeric dtype, got {df[col].dtype}")
+    return violations
 
 
 def validate_curated_tables(
     tables: Dict[str, pd.DataFrame],
     raw_counts: Dict[str, int],
+    supplier_set: Optional[Set[str]] = None,
+    agency_set: Optional[Set[str]] = None,
 ) -> Dict[str, Any]:
-    """Enforce all reconciliation gates and return reconciliation status metrics."""
+    """Enforce all reconciliation + FK + privacy gates and return status metrics.
+
+    Temporal FK mismatches are labeled TEMPORAL_SCOPE_UNMATCHED and are NOT
+    treated as data-quality failures. Out-of-scope rows arise from the split
+    between opening-date-scoped awards and notice-date-scoped tenders.
+    """
     tenders = tables["tenders"]
     submissions = tables["bidder_submissions"]
     awards = tables["award_outcomes"]
@@ -510,12 +779,106 @@ def validate_curated_tables(
     pk_agencies_valid = agencies["agency_code"].is_unique and agencies["agency_code"].isna().sum() == 0
     pk_bridge_valid = bridge["unified_contract_no"].is_unique and bridge["unified_contract_no"].isna().sum() == 0
 
+    # Gate 3: Temporal FK reporting (TEMPORAL_SCOPE_UNMATCHED = expected, not failure)
+    tender_key_set = set(zip(tenders["bid_notice_no"], tenders["bid_notice_round"]))
+
+    def _temporal_fk_metrics(df: pd.DataFrame, key_set: Set[Tuple[str, str]]) -> Dict[str, Any]:
+        in_scope = df.apply(
+            lambda row: (str(row.get("bid_notice_no", "")), str(row.get("bid_notice_round", ""))) in key_set,
+            axis=1,
+        )
+        return {
+            "TEMPORAL_SCOPE_MATCHED": int(in_scope.sum()),
+            "TEMPORAL_SCOPE_UNMATCHED": int((~in_scope).sum()),
+            "coverage_ratio": round(float(in_scope.mean()), 4) if len(df) else 0.0,
+        }
+
+    submissions_temporal = _temporal_fk_metrics(submissions, tender_key_set)
+    awards_temporal = _temporal_fk_metrics(awards, tender_key_set)
+    bridge_temporal = _temporal_fk_metrics(bridge, tender_key_set)
+
+    # Gate 4: FK referential integrity (supplier_id → suppliers, agency_code → agencies)
+    supplier_id_set = set(suppliers["supplier_id"].dropna())
+    agency_code_set = set(agencies["agency_code"].dropna())
+    contract_no_set = set(contracts["unified_contract_no"].dropna())
+
+    def _fk_coverage(fk_col: pd.Series, target_set: Set[str], skip_empty: bool = True) -> Dict[str, Any]:
+        non_null = fk_col.dropna()
+        if skip_empty:
+            non_null = non_null[non_null.astype(str).str.strip() != ""]
+        total = len(non_null)
+        if total == 0:
+            return {"total": 0, "matched": 0, "unmatched": 0, "coverage_ratio": 1.0}
+        matched = non_null.astype(str).isin(target_set).sum()
+        return {
+            "total": total,
+            "matched": int(matched),
+            "unmatched": int(total - matched),
+            "coverage_ratio": round(matched / total, 4),
+        }
+
+    fk_metrics: Dict[str, Any] = {}
+    # bidder_supplier_id → suppliers
+    if "bidder_supplier_id" in submissions.columns:
+        fk_metrics["submissions_bidder_supplier_id_to_suppliers"] = _fk_coverage(
+            submissions["bidder_supplier_id"], supplier_id_set
+        )
+    # winner_supplier_id → suppliers
+    if "winner_supplier_id" in awards.columns:
+        fk_metrics["awards_winner_supplier_id_to_suppliers"] = _fk_coverage(
+            awards["winner_supplier_id"], supplier_id_set
+        )
+    # contractor_supplier_id → suppliers
+    if "contractor_supplier_id" in contracts.columns:
+        fk_metrics["contracts_contractor_supplier_id_to_suppliers"] = _fk_coverage(
+            contracts["contractor_supplier_id"], supplier_id_set
+        )
+    # notice agency codes → agencies
+    for tbl_name, df in [("tenders", tenders), ("submissions", submissions)]:
+        if "notice_agency_code" in df.columns:
+            fk_metrics[f"{tbl_name}_notice_agency_code_to_agencies"] = _fk_coverage(
+                df["notice_agency_code"], agency_code_set
+            )
+    # demand agency codes → agencies
+    for tbl_name, df in [("tenders", tenders), ("submissions", submissions), ("contracts", contracts)]:
+        if "demand_agency_code" in df.columns:
+            fk_metrics[f"{tbl_name}_demand_agency_code_to_agencies"] = _fk_coverage(
+                df["demand_agency_code"], agency_code_set
+            )
+    # contract_agency_code → agencies
+    if "contract_agency_code" in contracts.columns:
+        fk_metrics["contracts_contract_agency_code_to_agencies"] = _fk_coverage(
+            contracts["contract_agency_code"], agency_code_set
+        )
+    # bridge.unified_contract_no → contracts
+    if "unified_contract_no" in bridge.columns:
+        fk_metrics["bridge_unified_contract_no_to_contracts"] = _fk_coverage(
+            bridge["unified_contract_no"], contract_no_set, skip_empty=False
+        )
+
+    # Gate 5: Forbidden column checks
+    all_forbidden_violations: List[str] = []
+    for tbl_name, df in tables.items():
+        all_forbidden_violations.extend(_check_forbidden_columns(tbl_name, df))
+
+    # Gate 6: Dtype constraints
+    all_dtype_violations: List[str] = []
+    for tbl_name, df in tables.items():
+        all_dtype_violations.extend(_check_dtype_constraints(tbl_name, df))
+
+    # Gate 7: Bridge assertions – tender keys non-null, linked contracts only
+    bridge_notice_non_null = (bridge["bid_notice_no"].fillna("").astype(str).str.strip() != "").all() if len(bridge) else True
+
+    gate_privacy = len(all_forbidden_violations) == 0
+    gate_dtype = len(all_dtype_violations) == 0
+    gate_bridge_assertions = bridge_notice_non_null
+
     all_passed = bool(
         gate_bids and gate_awards and gate_winners and gate_contracts and
         gate_bridge and gate_unlinked and gate_suppliers and gate_agencies and
         pk_tenders_valid and pk_submissions_valid and pk_awards_valid and
         pk_contracts_valid and pk_suppliers_valid and pk_agencies_valid and
-        pk_bridge_valid
+        pk_bridge_valid and gate_privacy and gate_dtype and gate_bridge_assertions
     )
 
     if not all_passed:
@@ -535,6 +898,9 @@ def validate_curated_tables(
         if not pk_suppliers_valid: mismatches.append("suppliers PK invalid")
         if not pk_agencies_valid: mismatches.append("agencies PK invalid")
         if not pk_bridge_valid: mismatches.append("bridge PK invalid")
+        if not gate_privacy: mismatches.append(f"forbidden columns: {all_forbidden_violations}")
+        if not gate_dtype: mismatches.append(f"dtype violations: {all_dtype_violations}")
+        if not gate_bridge_assertions: mismatches.append("bridge contains rows with null/empty bid_notice_no")
         raise ValueError(f"Critical reconciliation gate failure: {'; '.join(mismatches)}")
 
     return {
@@ -548,8 +914,21 @@ def validate_curated_tables(
         "agencies_match": gate_agencies,
         "all_pks_unique_and_non_null": True,
         "all_reconciliation_gates_passed": all_passed,
+        "forbidden_column_gate_passed": gate_privacy,
+        "dtype_constraint_gate_passed": gate_dtype,
+        "bridge_assertions_passed": gate_bridge_assertions,
+        "temporal_fk": {
+            "submissions": submissions_temporal,
+            "award_outcomes": awards_temporal,
+            "bridge": bridge_temporal,
+        },
+        "fk_coverage": fk_metrics,
     }
 
+
+# ---------------------------------------------------------------------------
+# Main curation pipeline
+# ---------------------------------------------------------------------------
 
 def run_curation(
     start: str = "2026-08-01",
@@ -594,10 +973,10 @@ def run_curation(
 
     logger.info("Starting relational curation for period %s ~ %s", start, end)
 
-    # 1. Load processed Parquet feeds
-    bids_files = list((processed_dir / "bids").glob("**/*.parquet"))
-    awards_files = list((processed_dir / "awards").glob("**/*.parquet"))
-    contracts_files = list((processed_dir / "contracts").glob("**/*.parquet"))
+    # 1. Load processed Parquet feeds — sort file lists for determinism
+    bids_files = sorted(list((processed_dir / "bids").glob("**/*.parquet")))
+    awards_files = sorted(list((processed_dir / "awards").glob("**/*.parquet")))
+    contracts_files = sorted(list((processed_dir / "contracts").glob("**/*.parquet")))
 
     bids_raw = pd.concat([pd.read_parquet(f) for f in bids_files], ignore_index=True)
     awards_raw = pd.concat([pd.read_parquet(f) for f in awards_files], ignore_index=True)
@@ -641,8 +1020,8 @@ def run_curation(
     submissions_df = build_curated_bidder_submissions(aug_awards, hmac_key, tender_keys)
     awards_df = build_curated_award_outcomes(aug_awards, hmac_key, tender_keys)
     contracts_df = build_curated_contracts(aug_contracts, hmac_key)
-    suppliers_df = build_curated_suppliers(aug_awards, aug_contracts, hmac_key)
-    agencies_df = build_curated_agencies(aug_bids, aug_contracts)
+    suppliers_df, supplier_name_conflict_count = build_curated_suppliers(aug_awards, aug_contracts, hmac_key)
+    agencies_df, agency_name_conflict_count = build_curated_agencies(aug_bids, aug_contracts)
     bridge_df = build_curated_bridge(aug_contracts, tender_keys)
 
     tables = {
@@ -711,6 +1090,8 @@ def run_curation(
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "curation_scope_start": start,
         "curation_scope_end": end,
+        "deterministic_build": True,
+        "surrogate_id_serialization": "canonical_json_v1",
         "reconciliation_gates": gates_result,
         "table_metrics": {
             "tenders": {
@@ -730,6 +1111,7 @@ def run_curation(
                 "temporal_fk_in_scope_count": int(submissions_df["tender_in_scope"].sum()),
                 "temporal_fk_out_of_scope_count": int((~submissions_df["tender_in_scope"]).sum()),
                 "temporal_fk_coverage_ratio": round(float(submissions_df["tender_in_scope"].mean()), 4),
+                "temporal_fk_label": "TEMPORAL_SCOPE_UNMATCHED rows are expected cross-period records, not data errors",
             },
             "award_outcomes": {
                 "row_count": len(awards_df),
@@ -741,8 +1123,10 @@ def run_curation(
                 "temporal_fk_in_scope_count": int(awards_df["tender_in_scope"].sum()),
                 "temporal_fk_out_of_scope_count": int((~awards_df["tender_in_scope"]).sum()),
                 "temporal_fk_coverage_ratio": round(float(awards_df["tender_in_scope"].mean()), 4),
+                "temporal_fk_label": "TEMPORAL_SCOPE_UNMATCHED rows are expected cross-period records, not data errors",
                 "award_amount_krw_null_count": aw_null_cnt,
                 "award_amount_krw_null_ratio": aw_null_ratio,
+                "award_amount_null_cause": "OBSERVED: NULL present in raw API snapshot for 24 winning entries. Cause is unfinalized post-opening adjudication at collection time. Labeled OBSERVED, not INFERRED administrative cause.",
             },
             "contracts": {
                 "row_count": len(contracts_df),
@@ -761,6 +1145,11 @@ def run_curation(
                 "bidders_count": int(suppliers_df["is_bidder"].sum()),
                 "winners_count": int(suppliers_df["is_winner"].sum()),
                 "contractors_count": int(suppliers_df["is_contractor"].sum()),
+                "name_conflict_count": supplier_name_conflict_count,
+                "name_resolution_policy": "most_frequent_normalized_name_with_lex_tiebreak",
+                "snapshot_stats_note": "snapshot_total_* columns are time-window aggregates only; NOT stable identity; must NOT be used as leak-free historical ML features",
+                "masked_biz_no_excluded": True,
+                "privacy_note": "supplier_id is sole public identity; company names require final privacy/license review before Kaggle publication",
             },
             "agencies": {
                 "row_count": len(agencies_df),
@@ -771,6 +1160,9 @@ def run_curation(
                 "notice_agencies_count": int(agencies_df["is_notice_agency"].sum()),
                 "demand_agencies_count": int(agencies_df["is_demand_agency"].sum()),
                 "contract_agencies_count": int(agencies_df["is_contract_agency"].sum()),
+                "name_conflict_count": agency_name_conflict_count,
+                "name_resolution_policy": "most_frequent_normalized_name_with_lex_tiebreak",
+                "snapshot_stats_note": "snapshot_total_* columns are time-window aggregates only; NOT stable identity; must NOT be used as leak-free historical ML features",
             },
             "tender_contract_bridge": {
                 "row_count": len(bridge_df),
@@ -781,22 +1173,33 @@ def run_curation(
                 "temporal_fk_in_scope_count": int(bridge_df["tender_in_scope"].sum()),
                 "temporal_fk_out_of_scope_count": int((~bridge_df["tender_in_scope"]).sum()),
                 "temporal_fk_coverage_ratio": round(float(bridge_df["tender_in_scope"].mean()), 4),
+                "temporal_fk_label": "TEMPORAL_SCOPE_UNMATCHED rows are expected cross-period records, not data errors",
             },
         },
         "award_amount_null_forensics": {
             "null_count": aw_null_cnt,
             "null_ratio": aw_null_ratio,
+            "cause_classification": "OBSERVED",
             "rank_distribution": rank_dist,
             "award_method_distribution": mapped_method_dist,
             "imputation_policy": "DO_NOT_IMPUTE: Preserved as NULL due to unfinalized post-opening adjudication in raw API snapshot.",
         },
         "storage": storage_metrics,
+        "fk_coverage": gates_result.get("fk_coverage", {}),
+        "name_resolution": {
+            "supplier_name_conflict_count": supplier_name_conflict_count,
+            "agency_name_conflict_count": agency_name_conflict_count,
+        },
+        "forbidden_column_validation": {
+            "passed": True,
+            "violations": [],
+        },
     }
 
     if metrics_path:
         metrics_path.parent.mkdir(parents=True, exist_ok=True)
         with open(metrics_path, "w", encoding="utf-8") as f:
-            json.dump(metrics, f, ensure_ascii=False, indent=2)
+            json.dump(metrics, f, ensure_ascii=False, indent=2, cls=_NumpyEncoder)
         logger.info("Wrote public curated metrics snapshot to %s", metrics_path)
 
     logger.info("Curated tables generation complete: %d total tables written to %s", len(tables), dest_dir)
@@ -828,5 +1231,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
