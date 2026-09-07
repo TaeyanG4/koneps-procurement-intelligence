@@ -216,11 +216,12 @@ def compute_source_hash(md_path: Path) -> str:
     GitHub Actions (Ubuntu).
     """
     raw_bytes = md_path.read_bytes()
-    # Decode, normalize line endings, re-encode to canonical UTF-8
-    text = raw_bytes.decode("utf-8", errors="replace")
+    # Strict UTF-8 decode, normalize line endings, re-encode to canonical UTF-8
+    text = raw_bytes.decode("utf-8")
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     canonical = text.encode("utf-8")
     return hashlib.sha256(canonical).hexdigest()
+
 
 
 def build_all_docs() -> List[Path]:

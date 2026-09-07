@@ -35,7 +35,7 @@ erDiagram
     tenders {
         string bid_notice_no PK
         string bid_notice_round PK
-        string bid_title_ko
+        string bid_notice_name_ko
         string notice_agency_code FK
         string demand_agency_code FK
         timestamp bid_notice_date
@@ -45,27 +45,30 @@ erDiagram
     }
 
     bidder_submissions {
-        string bid_notice_no PK, FK
-        string bid_notice_round PK, FK
-        string bidder_supplier_id PK, FK
-        double bid_amount_krw PK
-        string bid_submission_time PK
-        double opening_rank PK
-        double bid_rate
-        timestamp bid_submission_date
+        string bid_submission_id PK "BID_<32 hex>"
+        string bid_notice_no FK
+        string bid_notice_round FK
+        string bidder_supplier_id FK
+        boolean tender_in_scope
+        double bid_amount_krw
+        string bid_submission_time
+        double opening_rank
+        double bid_rate_pct
         boolean is_selected_winner
         string disqualification_reason_ko
     }
 
     award_outcomes {
-        string bid_notice_no PK, FK
-        string bid_notice_round PK, FK
-        string winner_supplier_id PK, FK
-        double award_amount_krw PK
-        string bid_submission_time PK
+        string award_outcome_id PK "AWD_<32 hex>"
+        string bid_notice_no FK
+        string bid_notice_round FK
+        string winner_supplier_id FK
+        boolean tender_in_scope
+        double award_amount_krw "Nullable (24건)"
         double award_rate
         double scheduled_price_krw
         double base_amount_krw
+        string award_method_ko
     }
 
     contracts {
@@ -77,7 +80,7 @@ erDiagram
         string demand_agency_code FK
         string contractor_supplier_id FK
         timestamp contract_date
-        int64 contract_amount_krw
+        int64 total_contract_amount_krw
         string contract_method_ko
     }
 
@@ -85,21 +88,24 @@ erDiagram
         string unified_contract_no PK, FK
         string bid_notice_no FK
         string bid_notice_round FK
-        string match_type
+        boolean tender_in_scope
     }
 
     suppliers {
-        string supplier_id PK
-        string business_reg_no_masked
+        string supplier_id PK "SUP_<32 hex>"
+        string masked_biz_no "123-45-*****"
         string supplier_name_ko
-        string ceo_name
-        string sigungu_ko
+        boolean is_bidder
+        boolean is_winner
+        boolean is_contractor
     }
 
     agencies {
         string agency_code PK
         string agency_name_ko
-        string agency_category
+        boolean is_notice_agency
+        boolean is_demand_agency
+        boolean is_contract_agency
     }
 ```
 
@@ -121,12 +127,12 @@ erDiagram
 
 ### 3.2 `bidder_submissions` (개별 기업 투찰 기록)
 - **개념**: 특정 입찰공고에 대해 참여 기업이 제출한 개별 투찰 내역.
-- **원천 디듀플리케이션 키 vs 큐레이티드 PK 구분**:
-  - **원천 중복 제거 그레인 (Raw Deduplication Grain)**: `(bid_notice_no, bid_notice_round, bidder_biz_no, opening_rank, disqualification_reason_ko, bid_amount_krw, bid_submission_time)` — 원천 API 스냅샷의 후속 필드 갱신을 안전하게 병합하기 위한 7-컬럼 키 (중복 0건, 무손실 실증 완료).
-  - **큐레이티드 불변 제출 식별자 (Curated Submission Event)**: 개찰순위(`opening_rank`) 및 탈락사유는 투찰 시점이 아닌 개찰 후 생성되는 결과 속성이므로, 순수 투찰 이벤트 후보 키(Candidate A/B) 평가 시 비순위 투찰 건 등으로 인한 중복(각각 432건, 841건)이 존재함을 확인했습니다. 따라서 물리 큐레이티드 테이블 구현 시 무손실 원천 7-컬럼 그레인을 복합 키로 유지합니다.
-- **기본 키 (Primary Key)**: `(bid_notice_no, bid_notice_round, bidder_supplier_id, opening_rank, disqualification_reason_ko, bid_amount_krw, bid_submission_time)`
+- **물리 기본 키 (Physical Surrogate PK)**: `bid_submission_id` (`BID_<32 hex>`) — 비즈니스 그레인의 정규 문자열 SHA-256 해시 기반 단일 고유 대리 키 (2,107,948행 전수 고유, 결측 0건).
+- **비즈니스 대조 그레인 (Business Reconciliation Grain)**: `(bid_notice_no, bid_notice_round, bidder_supplier_id, opening_rank, disqualification_reason_ko, bid_amount_krw, bid_submission_time)` — 원천 7-컬럼 무손실 식별 그레인 (중복 0건, 무손실 실증 완료).
+- **시간적 외래 키 (Temporal FK)**:
+  - `tender_in_scope: bool` — 당월 큐레이티드 공고(`tenders`)와의 연계 여부 플래그 (당월 연계 1,569,500건 / 74.46%, 이전 월 공고 연계 538,448건 / 25.54%).
 - **외래 키 (Foreign Keys)**:
-  - `(bid_notice_no, bid_notice_round)` $\rightarrow$ `tenders` (Nullable: False)
+  - `(bid_notice_no, bid_notice_round)` $\rightarrow$ `tenders` (시간적 외래 키, Nullable: False)
   - `bidder_supplier_id` $\rightarrow$ `suppliers.supplier_id` (Nullable: False)
 - **카디널리티**: `tenders (1) : bidder_submissions (N)` (공고당 1 ~ 9,675행, 평균 84.4행).
 - **검증 상태**: **LIVE VERIFIED** (2026년 8월 기준 2,107,948행 무손실 정합성 확인).
@@ -136,13 +142,14 @@ erDiagram
 
 ### 3.3 `award_outcomes` (최종 개찰/낙찰 결과)
 - **개념**: 적격심사 및 최종 낙찰 결정이 완료된 낙찰 결과.
-- **의도된 그레인 (Intended Grain)**: 특정 공고·차수 내 낙찰 건 (분할 발주 시 물품군별 1행).
-- **기본 키 (Primary Key)**: `(bid_notice_no, bid_notice_round, winner_supplier_id, award_amount_krw, bid_submission_time)`
-- **실증 메트릭 (2026년 8월 실측)**:
-  - 총 낙찰 행 수: **17,315행**
-  - 후보 키 고유 건수: **17,315건** (중복 건수: **0건**, 결측률: 0.0%)
-  - 검증 상태: **LIVE VERIFIED** (0 duplicates verified).
-  - 품목 식별자 한계: 공식 OpenAPI 개찰결과 피드에 물품분할번호(`bid_classification_no`)가 미제공되므로, 복수 낙찰 공고의 구분자로 투찰일시(`bid_submission_time`)를 활용합니다.
+- **물리 기본 키 (Physical Surrogate PK)**: `award_outcome_id` (`AWD_<32 hex>`) — 낙찰 이벤트 정규 문자열 SHA-256 해시 기반 단일 대리 키 (17,315행 전수 고유, 결측 0건).
+- **비즈니스 대조 그레인 (Business Reconciliation Grain)**: `(bid_notice_no, bid_notice_round, winner_supplier_id, award_amount_krw, bid_submission_time)` (17,315건 전수 일치).
+- **낙찰금액 결측(24건) 포렌식 및 결측치 정책**:
+  - 선정 낙찰자 17,315건 중 24건(0.14%)에서 `award_amount_krw`가 `NULL`로 수집됨.
+  - 사유: 적격심사 21건, 최저가 1건, 소액수의 1건, 기타 1건 등 개찰 직후 최종 행정 조율 중인 합법적 상태.
+  - 결측치 정책: `DO NOT IMPUTE` — 임의 대체를 절대 불허하고 순수 `NULL`로 보존하며, 대리 키 `award_outcome_id`를 통해 안전하게 식별.
+- **시간적 외래 키 (Temporal FK)**:
+  - `tender_in_scope: bool` — 당월 공고 연계 12,918건 (74.61%), 이전 월 공고 연계 4,397건 (25.39%).
 - **외래 키 (Foreign Keys)**:
   - `(bid_notice_no, bid_notice_round)` $\rightarrow$ `tenders`
   - `winner_supplier_id` $\rightarrow$ `suppliers.supplier_id`
@@ -169,41 +176,51 @@ erDiagram
 
 ### 3.5 `tender_contract_bridge` (공고-계약 연결 브릿지)
 - **개념**: 입찰공고와 최종 계약 간의 릴레이션 매핑을 담당하는 관계 브릿지 테이블.
-- **의도된 그레인**: 계약 1건당 연결된 공고 매핑.
-- **기본 키 (Primary Key)**: `unified_contract_no` (단일 계약이 2개 이상의 공고에 연결된 사례 0건 실증)
-- **관계성 실측 (Tender 1 : N Contract)**:
-  - 계약 기준 연결 공고 수: 0개 공고 연결 **75,268건 (64.92%)**, 1개 공고 연결 **40,677건 (35.08%)**, **2개 이상 공고 연결 0건 (0.00%)**.
-  - 따라서 계약 $\rightarrow$ 공고 매핑은 엄격히 0..1 관계이며, 전체 관계는 **Tender (1) : Contract (0..N)** 입니다.
+- **의도된 그레인**: 공고와 연계된 계약 1건당 연결 매핑 (미연계 계약은 브릿지에서 제외되어 `contracts`에만 보존).
+- **기본 키 (Primary Key)**: `unified_contract_no` (40,677행 전수 고유).
+- **시간적 외래 키 (Temporal FK)**:
+  - `tender_in_scope: bool` — 당월 공고 연계 9,138건 (22.46%), 이전 월 공고 연계 31,539건 (77.54%).
 - **외래 키 (Foreign Keys)**:
   - `unified_contract_no` $\rightarrow$ `contracts.unified_contract_no`
   - `(bid_notice_no, bid_notice_round)` $\rightarrow$ `tenders.(bid_notice_no, bid_notice_round)` (Nullable: True)
 - **카디널리티 실측**:
-  - 공고와 직접 연결되는 계약: **35.08%** (40,677건)
-  - 공고 미연결 계약: **64.92%** (75,268건)
-    - 미연결 계약 중 수의계약(`contract_method == '수의계약'`): **72,418건** (소계 대조 100% 정합)
-    - 미연결 계약 중 경쟁계약(제한/일반/지명경쟁): **2,850건**
+  - 공고와 직접 연결되는 계약: **35.08%** (40,677건) $\rightarrow$ 브릿지 테이블 수록.
+  - 공고 미연결 계약: **64.92%** (75,268건) $\rightarrow$ `contracts` 단독 보존 (수의계약 72,418건, 경쟁계약 2,850건).
 - **설계 의의**: 미연결 계약을 공고와 억지로 Inner Join하여 누락시키는 오류를 방지하고, 단일 공고가 여러 계약으로 분할 체결되는 1:N 관계(208건)를 안전하게 수용합니다.
 
 ---
 
 ### 3.6 `suppliers` (공급업체 차원 테이블)
 - **개념**: 조달시장에 참여하는 기업/개인사업자 마스터.
-- **기본 키 (Primary Key)**: `supplier_id` (10자리 정규화 사업자등록번호 기반 **HMAC-SHA256** `SUP_<32 hex>` 해시 ID)
-- **식별자 가명화 정책**: 공개 Kaggle 데이터셋 배포 시 사업자등록번호 원문은 비공개하며, 안전한 단방향 HMAC 키(`supplier_id`)와 마스킹된 번호(`123-45-*****`)를 제공합니다.
+- **기본 키 (Primary Key)**: `supplier_id` (10자리 정규화 사업자등록번호 기반 **HMAC-SHA256** `SUP_<32 hex>` 해시 ID, 143,842행 전수 고유).
+- **식별자 가명화 정책**: 공개 Kaggle 데이터셋 배포 시 사업자등록번호 원문은 비공개하며, 안전한 단방향 HMAC 키(`supplier_id`)와 마스킹된 번호(`masked_biz_no`: `123-45-*****`)를 제공합니다.
 - **비밀키 분리 원칙**: HMAC 키는 API 인증키(`DATA_GO_KR_SERVICE_KEY`)와 완전히 분리된 전용 비밀키(`KONEPS_SUPPLIER_HMAC_KEY`)로 서명되며, 배포 버전 간 일관성을 위해 영구 보존됩니다.
 - **실측 규모 (2026년 8월)**:
   - 투찰 기업: 123,777개사
-  - 낙찰 기업: 13,376개사
+  - 낙찰 기업: 13,374개사
   - 계약 체결 기업: 59,233개사
   - 총 고유 기업: **143,842개사**
-  - 낙찰사의 계약 일치율: **85.0%** (11,370개사 일치)
 
 ---
 
 ### 3.7 `agencies` (발주 및 수요기관 차원 테이블)
 - **개념**: 공공물품을 발주하거나 실제 사용하는 국가기관, 지자체, 공기업.
-- **기본 키 (Primary Key)**: `agency_code` (공공데이터포털 7자리 표준 기관코드)
-- **실측 규모 (2026년 8월)**: 총 **14,091개 기관** 식별 완료.
+- **기본 키 (Primary Key)**: `agency_code` (공공데이터포털 7자리 표준 기관코드, 14,091행 전수 고유).
+- **실측 규모 (2026년 8월)**: 발주기관 5,690개사, 수요기관 14,079개사, 계약기관 12,347개사 $\rightarrow$ 총 **14,091개 기관** 식별 완료.
+
+---
+
+### 3.8 물리 큐레이티드 테이블 요약 (`CURATED_SCHEMA_VERSION = "1.0.0"`)
+
+| 번호 | 테이블 파일명 | 행 수 | 기본 키 (PK) | 압축 크기 (MiB) | 검증 상태 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | `01_tenders.parquet` | 32,895 | `(bid_notice_no, bid_notice_round)` | 1.99 | **VERIFIED (0 dup / 0 null)** |
+| 2 | `02_bidder_submissions.parquet` | 2,107,948 | `bid_submission_id` | 96.19 | **VERIFIED (0 dup / 0 null)** |
+| 3 | `03_award_outcomes.parquet` | 17,315 | `award_outcome_id` | 2.01 | **VERIFIED (0 dup / 0 null)** |
+| 4 | `04_contracts.parquet` | 115,945 | `unified_contract_no` | 10.21 | **VERIFIED (0 dup / 0 null)** |
+| 5 | `05_suppliers.parquet` | 143,842 | `supplier_id` | 4.36 | **VERIFIED (0 dup / 0 null)** |
+| 6 | `06_agencies.parquet` | 14,091 | `agency_code` | 0.21 | **VERIFIED (0 dup / 0 null)** |
+| 7 | `07_tender_contract_bridge.parquet` | 40,677 | `unified_contract_no` | 0.71 | **VERIFIED (0 dup / 0 null)** |
 
 ---
 

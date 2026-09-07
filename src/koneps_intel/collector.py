@@ -81,12 +81,15 @@ class Collector:
         out_dir: Path,
         manifest_manager: Optional[ManifestManager] = None,
         logger=None,
+        run_id: Optional[str] = None,
     ):
         self.client = client
         self.out_dir = out_dir
         self.manifest = manifest_manager or ManifestManager(out_dir / "manifest.json")
         self.logger = logger or get_logger("koneps_intel.collector")
         self.receipts_dir = (self.out_dir.parent / "logs" / "page_receipts") if self.out_dir else (LOGS_DIR / "page_receipts")
+        self.run_id = run_id or f"run_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+        self._attempt_counters: Dict[str, int] = {}
 
     def _record_receipt(self, receipt: Dict[str, Any]) -> None:
         """Write public-safe page receipt to append-only JSONL log."""
@@ -98,6 +101,36 @@ class Collector:
                 f.write(json.dumps(receipt, ensure_ascii=False) + "\n")
         except Exception as exc:
             self.logger.debug("Could not record page receipt: %s", exc)
+
+    def _record_attempt_summary(
+        self,
+        dataset: str,
+        category: Optional[str],
+        window_start: str,
+        window_end: str,
+        attempt_id: str,
+        status: str,
+        row_count: int = 0,
+        total_expected: Optional[int] = None,
+        error: Optional[str] = None,
+    ) -> None:
+        """Record attempt summary to distinguish failed and successful window collection attempts."""
+        record = {
+            "record_type": "attempt_summary",
+            "run_id": self.run_id,
+            "attempt_id": attempt_id,
+            "dataset": dataset,
+            "category": category,
+            "window_start": window_start,
+            "window_end": window_end,
+            "status": status,
+            "row_count": row_count,
+            "total_expected": total_expected,
+            "error": error,
+            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+        self._record_receipt(record)
+
 
     def collect_window(
         self,
@@ -180,6 +213,10 @@ class Collector:
         if tmp.exists():
             tmp.unlink()
 
+        window_key = f"{spec.name}_{business_code or 'all'}_{start_str}_{end_str}"
+        self._attempt_counters[window_key] = self._attempt_counters.get(window_key, 0) + 1
+        attempt_id = f"attempt_{self._attempt_counters[window_key]}"
+
         page = 1
         row_count = 0
         calls_before = self.client.calls
@@ -196,6 +233,8 @@ class Collector:
             "page_size": page_size,
             "status": "collecting",
             "started_at_utc": now_utc,
+            "run_id": self.run_id,
+            "attempt_id": attempt_id,
         }
 
         try:
@@ -207,7 +246,7 @@ class Collector:
                     if total_expected is None:
                         total_expected = total
 
-                    # Capture future page-level observability receipt (public-safe)
+                    # Capture page-level observability receipt (all pages share attempt_id)
                     receipt = generate_page_receipt(
                         dataset=spec.name,
                         window_start=start.isoformat(),
@@ -216,8 +255,8 @@ class Collector:
                         page_no=page,
                         items=items,
                         reported_total_count=total,
-                        run_id=initial_meta.get("started_at_utc"),
-                        attempt_id=f"page_{page}",
+                        run_id=self.run_id,
+                        attempt_id=attempt_id,
                     )
                     self._record_receipt(receipt)
 
@@ -255,6 +294,18 @@ class Collector:
             tmp.replace(path)
             api_calls = self.client.calls - calls_before
 
+            # Record successful attempt summary
+            self._record_attempt_summary(
+                dataset=spec.name,
+                category=business_code,
+                window_start=start.isoformat(),
+                window_end=end.isoformat(),
+                attempt_id=attempt_id,
+                status="success",
+                row_count=row_count,
+                total_expected=total_expected,
+            )
+
             # Update manifest
             record = ManifestRecord(
                 dataset=spec.name,
@@ -274,14 +325,37 @@ class Collector:
             return row_count, api_calls, path
 
         except QuotaExceededError as q_err:
+            self._record_attempt_summary(
+                dataset=spec.name,
+                category=business_code,
+                window_start=start.isoformat(),
+                window_end=end.isoformat(),
+                attempt_id=attempt_id,
+                status="failed",
+                row_count=row_count,
+                total_expected=total_expected,
+                error=f"QuotaExceededError: {q_err}",
+            )
             if tmp.exists():
                 tmp.unlink()
             self.logger.error("STOP Daily quota exceeded during window %s [%s..%s]: %s", spec.name, start, end, q_err)
             raise
-        except Exception:
+        except Exception as exc:
+            self._record_attempt_summary(
+                dataset=spec.name,
+                category=business_code,
+                window_start=start.isoformat(),
+                window_end=end.isoformat(),
+                attempt_id=attempt_id,
+                status="failed",
+                row_count=row_count,
+                total_expected=total_expected,
+                error=str(exc),
+            )
             if tmp.exists():
                 tmp.unlink()
             raise
+
 
     def collect(
         self,

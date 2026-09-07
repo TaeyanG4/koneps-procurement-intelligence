@@ -254,11 +254,17 @@ koneps-procurement-intelligence/
 │       ├── schemas.py           # Column aliases & controlled vocabularies
 │       ├── normalize.py         # Type casting & Parquet conversion
 │       ├── quality.py           # Quality checks & anomaly detection
+│       ├── audit.py             # Pilot audit & collision forensics engine
+│       ├── privacy.py           # HMAC-SHA256 enterprise pseudonymization
+│       ├── curate.py            # Relational curation & reconciliation pipeline
 │       └── utils.py             # Structured logging & secret filtering
 │
 ├── scripts/
 │   ├── collect_standard.py      # Raw collection CLI
 │   ├── build_dataset.py         # Parquet normalization CLI
+│   ├── build_curated.py         # 7 curated relational tables builder CLI
+│   ├── audit_pilot.py           # Pilot audit & metrics generator CLI
+│   ├── build_docs.py            # Project DOCX generator & hash verifier CLI
 │   ├── ingest_bidder_report.py  # Bidder report ingestion CLI
 │   └── quality_check.py         # Quality profiling CLI
 │
@@ -266,6 +272,7 @@ koneps-procurement-intelligence/
 │   ├── raw/                     # Raw immutable .jsonl.gz files
 │   ├── staging/                 # Intermediate processing scratchpad
 │   ├── processed/               # Partitioned Parquet datasets
+│   │   └── curated/             # 7 normalized relational curated Parquet (ZSTD)
 │   └── logs/                    # Pipeline execution logs
 │
 ├── tests/
@@ -274,6 +281,7 @@ koneps-procurement-intelligence/
 │   ├── test_parsers.py          # Response & window parsing tests
 │   ├── test_collector.py        # Collection & resume logic tests
 │   ├── test_normalize.py        # Schema casting & Parquet tests
+│   ├── test_curate.py           # Curated tables, surrogate PKs & privacy tests
 │   ├── test_quality.py          # Quality profiling & anomaly tests
 │   └── test_text_integrity.py   # Encoding & text corruption tests
 │

@@ -30,9 +30,11 @@ flowchart TD
     end
 
     subgraph S4["4. 관계형 큐레이션 및 연구 배포 계층 (Curated Relational Layer)"]
-        H --> L["관계형 엔터티 분리<br/>(tenders, bidder_submissions, award_outcomes, contracts)"]
-        L --> N["차원 및 브릿지 테이블 결합<br/>(suppliers, agencies, tender_contract_bridge)"]
-        N --> P["Kaggle 데이터셋 패키징<br/>(Partitioned Parquet + Zstandard)"]
+        H --> L["정규화 Parquet 피드 로드<br/>(bids, awards, contracts)"]
+        L --> M1["큐레이션 엔진<br/>(scripts/build_curated.py<br/>src/koneps_intel/curate.py)"]
+        M1 --> N["수학적 정합성 게이트 검증<br/>(validate_curated_tables)"]
+        N --> O["7개 관계형 큐레이티드 Parquet<br/>(tenders, submissions, awards,<br/>contracts, suppliers, agencies, bridge)"]
+        O --> P["공개 메트릭 아티팩트<br/>(docs/metrics/curated_YYYY_MM.json)"]
     end
 ```
 
@@ -65,6 +67,13 @@ flowchart TD
   - **입찰공고 (`tenders`) 1 → N 투찰기록 (`bidder_submissions`)**: 공고 1건당 최대 9,675개사 투찰.
   - **입찰공고 (`tenders`) 1 → 0..N 개찰/낙찰결과 (`award_outcomes`)**: 단일 낙찰 67.02%, 유찰 32.82%, 복수낙찰/다수물품 0.16%.
   - **입찰공고 (`tenders`) 1 → 0..N 계약내역 (`contracts`)**: 공고 연계 계약 35.08%, 미연계 자체/수의계약 64.92%.
+
+### 6. 관계형 큐레이션 및 프라이버시 보존 원칙 (Curated Relational & Privacy Preservation)
+- `CURATED_SCHEMA_VERSION = "1.0.0"`: 7개의 물리 큐레이티드 테이블 구축 (`01_tenders`, `02_bidder_submissions`, `03_award_outcomes`, `04_contracts`, `05_suppliers`, `06_agencies`, `07_tender_contract_bridge`).
+- 결정론적 대리 기본 키: `BID_<32 hex>` 및 `AWD_<32 hex>`를 통해 비즈니스 그레인을 완벽히 보존하면서도 O(1) 단일 컬럼 조인을 제공.
+- 프라이버시 완벽 보장: 원천 사업자등록번호, 대표자명, 전화번호, 상세 주소, 이메일을 전수 제거하고 전용 HMAC-SHA256 키(`KONEPS_SUPPLIER_HMAC_KEY`)로 가명화된 `supplier_id` 및 마스킹된 `masked_biz_no`(`123-45-*****`)만을 제공.
+- 비밀키 분리: API 인증키(`DATA_GO_KR_SERVICE_KEY`)와 가명화 서명키(`KONEPS_SUPPLIER_HMAC_KEY`)를 철저히 분리.
+- 시간적 외래키 추적: `tender_in_scope: bool` 플래그를 통해 월간 수집 경계에 걸친 공고-투찰-낙찰-계약 관계를 왜곡 없이 보존.
 
 ---
 

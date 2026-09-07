@@ -457,14 +457,15 @@ def test_page_receipt_generation_and_storage(tmp_path):
 
 
 def test_page_receipt_attempt_and_failure_semantics(tmp_path):
-    """Verify that multiple attempts append distinct receipts and failed attempts record receipts."""
+    """Verify that multiple attempts append distinct receipts and failed/successful attempts are distinguishable."""
     from koneps_intel.collector import generate_page_receipt, Collector
     from koneps_intel.endpoints import FEEDS
 
     mock_client = MagicMock()
     # First attempt raises an error on page 2
+    mock_client.calls = 0
     mock_client.get_page.side_effect = [
-        ([{"col": "val1"}], 100),
+        ([{"col": "val1"}], 2),
         RuntimeError("Network timeout on page 2"),
     ]
 
@@ -474,17 +475,55 @@ def test_page_receipt_attempt_and_failure_semantics(tmp_path):
     start = date(2026, 8, 1)
     end = date(2026, 8, 31)
 
+    # 1. Attempt 1 fails midway
     with pytest.raises(RuntimeError):
         collector.collect_window(spec, start, end, page_size=1)
 
-    # Page 1 receipt was still recorded before failure
     receipt_files = list(collector.receipts_dir.glob("*.jsonl"))
     assert len(receipt_files) == 1
     with open(receipt_files[0], "r", encoding="utf-8") as f:
-        lines = f.readlines()
-        assert len(lines) == 1
-        rcpt1 = json.loads(lines[0])
-        assert rcpt1["page_no"] == 1
+        lines_attempt1 = [json.loads(l) for l in f]
+
+    # Attempt 1 has page 1 receipt and failure summary
+    assert len(lines_attempt1) == 2
+    assert lines_attempt1[0]["attempt_id"] == "attempt_1"
+    assert lines_attempt1[0]["page_no"] == 1
+    assert lines_attempt1[1]["attempt_id"] == "attempt_1"
+    assert lines_attempt1[1]["record_type"] == "attempt_summary"
+    assert lines_attempt1[1]["status"] == "failed"
+
+    # 2. Attempt 2 (retry) succeeds completely
+    mock_client.get_page.side_effect = [
+        ([{"col": "val1"}], 2),
+        ([{"col": "val2"}], 2),
+    ]
+    rows, calls, path = collector.collect_window(spec, start, end, page_size=1)
+    assert rows == 2
+
+    with open(receipt_files[0], "r", encoding="utf-8") as f:
+        all_lines = [json.loads(l) for l in f]
+
+    # Total 5 records: attempt 1 (page 1 + failed), attempt 2 (page 1 + page 2 + success)
+    assert len(all_lines) == 5
+    attempt2_records = [r for r in all_lines if r["attempt_id"] == "attempt_2"]
+    assert len(attempt2_records) == 3
+
+    # All pages in attempt 2 share attempt_id "attempt_2"
+    page_records = [r for r in attempt2_records if "page_no" in r]
+    assert len(page_records) == 2
+    assert page_records[0]["page_no"] == 1
+    assert page_records[1]["page_no"] == 2
+    assert page_records[0]["attempt_id"] == "attempt_2"
+    assert page_records[1]["attempt_id"] == "attempt_2"
+
+    # Successful attempt summary recorded
+    summary_record = [r for r in attempt2_records if r.get("record_type") == "attempt_summary"][0]
+    assert summary_record["status"] == "success"
+    assert summary_record["row_count"] == 2
+
+    # Top-level run_id is shared across attempts
+    assert lines_attempt1[0]["run_id"] == page_records[0]["run_id"] == collector.run_id
+
 
 
 

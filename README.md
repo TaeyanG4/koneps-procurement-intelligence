@@ -259,11 +259,17 @@ koneps-procurement-intelligence/
 │       ├── schemas.py           # 표준 컬럼 영문화 매핑 및 제어 어휘
 │       ├── normalize.py         # 엄격한 타입 캐스팅 및 Parquet 파티셔닝
 │       ├── quality.py           # 품질 지표 프로파일링 및 이상치 탐지
+│       ├── audit.py             # 파일럿 정밀 감사 및 충돌 포렌식 엔진
+│       ├── privacy.py           # HMAC-SHA256 기업 가명화 유틸리티
+│       ├── curate.py            # 관계형 큐레이션 및 정합성 게이트 파이프라인
 │       └── utils.py             # 구조화 로깅 및 비밀정보 필터링
 │
 ├── scripts/
 │   ├── collect_standard.py      # 원천 API 수집 CLI
 │   ├── build_dataset.py         # Parquet 정규화 빌드 CLI
+│   ├── build_curated.py         # 7대 관계형 큐레이티드 테이블 생성 CLI
+│   ├── audit_pilot.py           # 파일럿 실증 감사 및 메트릭 산출 CLI
+│   ├── build_docs.py            # 공식 DOCX 문서 빌더 및 해시 검증 CLI
 │   ├── ingest_bidder_report.py  # 투찰보고서 엑셀/CSV 인제스트 CLI
 │   └── quality_check.py         # 데이터 품질 감사 CLI
 │
@@ -271,6 +277,7 @@ koneps-procurement-intelligence/
 │   ├── raw/                     # 불변 원천 압축 파일 (.jsonl.gz)
 │   ├── staging/                 # 정규화 임시 검증 디렉토리
 │   ├── processed/               # 연/월 파티셔닝된 분석용 Parquet
+│   │   └── curated/             # 7대 정규화 관계형 큐레이티드 Parquet (ZSTD)
 │   └── logs/                    # 수집 및 정규화 실행 로그
 │
 ├── tests/
@@ -279,6 +286,7 @@ koneps-procurement-intelligence/
 │   ├── test_parsers.py          # 응답 파싱 및 윈도우 생성 테스트
 │   ├── test_collector.py        # 매니페스트 무결성 및 수집 재개 테스트
 │   ├── test_normalize.py        # 스키마 캐스팅, 불리언/일시 정규화 테스트
+│   ├── test_curate.py           # 큐레이티드 테이블, 대리키, 가명화, 정합성 테스트
 │   ├── test_quality.py          # 품질 프로파일링 및 이상치 경계 테스트
 │   └── test_text_integrity.py   # 인코딩 깨짐(?/모지바케) 방지 테스트
 │

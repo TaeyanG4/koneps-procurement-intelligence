@@ -1,0 +1,151 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-09-07T04:02:06.803012+00:00",
+  "curation_scope_start": "2026-08-01",
+  "curation_scope_end": "2026-08-31",
+  "reconciliation_gates": {
+    "bids_to_tenders_match": true,
+    "awards_to_bidder_submissions_match": true,
+    "winners_to_award_outcomes_match": true,
+    "contracts_match": true,
+    "linked_contracts_to_bridge_match": true,
+    "unlinked_contracts_match": true,
+    "suppliers_match": true,
+    "agencies_match": true,
+    "all_pks_unique_and_non_null": true,
+    "all_reconciliation_gates_passed": true
+  },
+  "table_metrics": {
+    "tenders": {
+      "row_count": 32895,
+      "primary_key": "(bid_notice_no, bid_notice_round)",
+      "pk_null_count": 0,
+      "pk_duplicate_count": 0,
+      "is_pk_unique": true
+    },
+    "bidder_submissions": {
+      "row_count": 2107948,
+      "primary_key": "bid_submission_id",
+      "surrogate_pk_prefix": "BID_",
+      "pk_null_count": 0,
+      "pk_duplicate_count": 0,
+      "is_pk_unique": true,
+      "temporal_fk_in_scope_count": 1569500,
+      "temporal_fk_out_of_scope_count": 538448,
+      "temporal_fk_coverage_ratio": 0.7446
+    },
+    "award_outcomes": {
+      "row_count": 17315,
+      "primary_key": "award_outcome_id",
+      "surrogate_pk_prefix": "AWD_",
+      "pk_null_count": 0,
+      "pk_duplicate_count": 0,
+      "is_pk_unique": true,
+      "temporal_fk_in_scope_count": 12918,
+      "temporal_fk_out_of_scope_count": 4397,
+      "temporal_fk_coverage_ratio": 0.7461,
+      "award_amount_krw_null_count": 24,
+      "award_amount_krw_null_ratio": 0.001386
+    },
+    "contracts": {
+      "row_count": 115945,
+      "primary_key": "unified_contract_no",
+      "pk_null_count": 0,
+      "pk_duplicate_count": 0,
+      "is_pk_unique": true
+    },
+    "suppliers": {
+      "row_count": 143842,
+      "primary_key": "supplier_id",
+      "surrogate_pk_prefix": "SUP_",
+      "pk_null_count": 0,
+      "pk_duplicate_count": 0,
+      "is_pk_unique": true,
+      "bidders_count": 123777,
+      "winners_count": 13374,
+      "contractors_count": 59233
+    },
+    "agencies": {
+      "row_count": 14091,
+      "primary_key": "agency_code",
+      "pk_null_count": 0,
+      "pk_duplicate_count": 0,
+      "is_pk_unique": true,
+      "notice_agencies_count": 5690,
+      "demand_agencies_count": 14079,
+      "contract_agencies_count": 12347
+    },
+    "tender_contract_bridge": {
+      "row_count": 40677,
+      "primary_key": "unified_contract_no",
+      "pk_null_count": 0,
+      "pk_duplicate_count": 0,
+      "is_pk_unique": true,
+      "temporal_fk_in_scope_count": 9138,
+      "temporal_fk_out_of_scope_count": 31539,
+      "temporal_fk_coverage_ratio": 0.2246
+    }
+  },
+  "award_amount_null_forensics": {
+    "null_count": 24,
+    "null_ratio": 0.001386,
+    "rank_distribution": {
+      "1.0": 23,
+      "19.0": 1
+    },
+    "award_method_distribution": {
+      "qualification_review": 21,
+      "other": 1,
+      "lowest_price": 1,
+      "small_sum_private": 1
+    },
+    "imputation_policy": "DO_NOT_IMPUTE: Preserved as NULL due to unfinalized post-opening adjudication in raw API snapshot."
+  },
+  "storage": {
+    "tenders": {
+      "file_name": "01_tenders.parquet",
+      "bytes": 2084037,
+      "mib": 1.99,
+      "mb": 2.08
+    },
+    "bidder_submissions": {
+      "file_name": "02_bidder_submissions.parquet",
+      "bytes": 100861029,
+      "mib": 96.19,
+      "mb": 100.86
+    },
+    "award_outcomes": {
+      "file_name": "03_award_outcomes.parquet",
+      "bytes": 2102572,
+      "mib": 2.01,
+      "mb": 2.1
+    },
+    "contracts": {
+      "file_name": "04_contracts.parquet",
+      "bytes": 10702406,
+      "mib": 10.21,
+      "mb": 10.7
+    },
+    "suppliers": {
+      "file_name": "05_suppliers.parquet",
+      "bytes": 4572613,
+      "mib": 4.36,
+      "mb": 4.57
+    },
+    "agencies": {
+      "file_name": "06_agencies.parquet",
+      "bytes": 224823,
+      "mib": 0.21,
+      "mb": 0.22
+    },
+    "tender_contract_bridge": {
+      "file_name": "07_tender_contract_bridge.parquet",
+      "bytes": 743635,
+      "mib": 0.71,
+      "mb": 0.74
+    },
+    "total_curated_bytes": 121291115,
+    "total_curated_mib": 115.67,
+    "total_curated_mb": 121.29
+  }
+}

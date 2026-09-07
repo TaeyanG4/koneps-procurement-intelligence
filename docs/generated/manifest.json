@@ -1,13 +1,13 @@
 {
   "ARCHITECTURE.ko.docx": {
     "source": "docs/ARCHITECTURE.md",
-    "source_sha256": "f61498dac3473d054d059bd81c3df55fd5d40bd448daa92cdd6afd50a994e838",
-    "docx_size_bytes": 39728
+    "source_sha256": "94806acb97c22087b00d816774b247aa56cc226ae08c6912e793c18e068e6b28",
+    "docx_size_bytes": 40337
   },
   "ARCHITECTURE.en.docx": {
     "source": "docs/ARCHITECTURE.en.md",
-    "source_sha256": "f382c436a28c79203a0ad98f7d1203dde989f8cb3e3412758196195b47a45b5b",
-    "docx_size_bytes": 39240
+    "source_sha256": "9ae77014a4ff8836834d8f732652c550232e6d04115488ca4c6958bc95b77a0c",
+    "docx_size_bytes": 39797
   },
   "DATA_SOURCES.ko.docx": {
     "source": "docs/DATA_SOURCES.md",
@@ -21,13 +21,13 @@
   },
   "DATA_DICTIONARY.ko.docx": {
     "source": "docs/DATA_DICTIONARY.md",
-    "source_sha256": "a2795aaa1f9f200d3fa810975fbfc64ae87857aec65eb0592c11cf96f377d89e",
-    "docx_size_bytes": 40625
+    "source_sha256": "23b8c60f6dcd6ec03d0b38e8f82aeaba0f82bd2bbb8c603ffe797579a0eb38e0",
+    "docx_size_bytes": 42239
   },
   "DATA_DICTIONARY.en.docx": {
     "source": "docs/DATA_DICTIONARY.en.md",
-    "source_sha256": "1d9c54912520fa483fd68b47db684d21c5618613371a7c930597bf9ba5eb6828",
-    "docx_size_bytes": 40369
+    "source_sha256": "1fb1f419df05b571623156b71f54a218fea89c5c98969bec7258dc418199d6b2",
+    "docx_size_bytes": 41986
   },
   "LIVE_VALIDATION.ko.docx": {
     "source": "docs/LIVE_VALIDATION.md",
@@ -41,22 +41,22 @@
   },
   "PILOT_2026_08.ko.docx": {
     "source": "docs/PILOT_2026_08.md",
-    "source_sha256": "26f0b83e64ba5f87428c347992407e6f3573ee676fd441c37de7161dfe54b477",
-    "docx_size_bytes": 42583
+    "source_sha256": "47d2883793955e6f0ce09356c7b4f3c8f467eed28e05ab528d35468ad553114f",
+    "docx_size_bytes": 44549
   },
   "PILOT_2026_08.en.docx": {
     "source": "docs/PILOT_2026_08.en.md",
-    "source_sha256": "5c86586e558569a93d8cfb40c56c1c7001d4f3441225e1aaab13af22b516fad7",
-    "docx_size_bytes": 41320
+    "source_sha256": "85d2f5c6dfaa96cdf3ccf582f02150080447fe4c8fbf2c11a63e75909c887140",
+    "docx_size_bytes": 43190
   },
   "RELATIONAL_MODEL.ko.docx": {
     "source": "docs/RELATIONAL_MODEL.md",
-    "source_sha256": "3167fd21512e1ee4ca468b21de377d28195f588df6881e0c19b71f0496b648a1",
-    "docx_size_bytes": 41956
+    "source_sha256": "42a48132782bb019018475c53db888caee90dcabf35534c10d99e56ed643c3fc",
+    "docx_size_bytes": 42458
   },
   "RELATIONAL_MODEL.en.docx": {
     "source": "docs/RELATIONAL_MODEL.en.md",
-    "source_sha256": "335c5af57218b328155c3101774112feb18d27ae8954ca8efda68c4168d61879",
-    "docx_size_bytes": 41211
+    "source_sha256": "6a3ace08cd7fc66cb63412493f7567708e0aae65de15d45808e47022f240197e",
+    "docx_size_bytes": 41891
   }
 }

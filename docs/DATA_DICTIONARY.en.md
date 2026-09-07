@@ -147,3 +147,84 @@ Features engineered following relational bridge construction:
 - `supplier_historical_win_rate`: Cumulative time-safe win rate prior to tender date
 - `scheduled_price_ratio`: Scheduled price relative to base amount (`scheduled_price_krw / base_amount_krw`)
 - `bid_price_ratio`: Bid amount relative to estimated price (`bid_amount_krw / estimated_price_krw`)
+
+---
+
+## 6. Curated Relational Tables (`CURATED_SCHEMA_VERSION = "1.0.0"`)
+
+Schema specifications for the 7 normalized relational tables generated under `data/processed/curated/YYYY_MM/`.
+
+### 6.1 `01_tenders.parquet` (Tender Announcements Master)
+- **Physical Primary Key (PK)**: `(bid_notice_no, bid_notice_round)`
+- **Row Count**: 32,895 rows (August 2026, 100% unique)
+- **Key Columns**: `bid_notice_no`, `bid_notice_round`, `bid_notice_name_ko`, `notice_agency_code`, `notice_agency_name_ko`, `demand_agency_code`, `demand_agency_name_ko`, `business_div_name_ko`, `contract_method_ko`, `award_method_ko`, `assigned_budget_krw`, `estimated_price_krw`, `bid_notice_date`, `bid_begin_date`, `bid_close_date`, `opening_date`, `is_joint_contract`, `is_electronic_bid`, `is_region_limited`, `is_industry_limited`
+
+### 6.2 `02_bidder_submissions.parquet` (Individual Bidder Submissions)
+- **Physical Primary Key (PK)**: `bid_submission_id` (`BID_<32 hex>`, deterministic SHA-256 surrogate key, 100% unique)
+- **Business Reconciliation Grain**: `(bid_notice_no, bid_notice_round, bidder_supplier_id, opening_rank, disqualification_reason_ko, bid_amount_krw, bid_submission_time)` (7-column lossless grain)
+- **Row Count**: 2,107,948 rows (August 2026)
+- **Key Columns**:
+  - `bid_submission_id`: string (PK, `BID_` prefix)
+  - `bid_notice_no`, `bid_notice_round`: tender reference (FK)
+  - `bidder_supplier_id`: pseudonymized supplier reference (FK, `SUP_` prefix)
+  - `tender_in_scope`: whether tender notice is in current scope window (`boolean`)
+  - `bid_amount_krw`: submitted bid amount (`float64`, KRW)
+  - `bid_rate_pct`: bid rate relative to scheduled price (`float64`, %)
+  - `opening_rank`: rank determined at opening (`float64`)
+  - `is_selected_winner`: whether bid was selected as winner (`boolean`)
+  - `disqualification_reason_ko`: disqualification reason (`string`)
+  - `bid_submission_time`: bid submission timestamp (`string`)
+
+### 6.3 `03_award_outcomes.parquet` (Final Award Outcomes)
+- **Physical Primary Key (PK)**: `award_outcome_id` (`AWD_<32 hex>`, deterministic SHA-256 surrogate key, 100% unique)
+- **Business Reconciliation Grain**: `(bid_notice_no, bid_notice_round, winner_supplier_id, award_amount_krw, bid_submission_time)`
+- **Row Count**: 17,315 rows (all selected winners)
+- **Award Amount Null Policy**: Exactly 24 rows (0.14%) have NULL `award_amount_krw` due to unfinalized post-opening adjudication. Preserved as `NULL` per `DO NOT IMPUTE` policy.
+- **Key Columns**:
+  - `award_outcome_id`: string (PK, `AWD_` prefix)
+  - `bid_notice_no`, `bid_notice_round`: tender reference (FK)
+  - `winner_supplier_id`: winning supplier reference (FK, `SUP_` prefix)
+  - `tender_in_scope`: whether tender notice is in current scope window (`boolean`)
+  - `award_amount_krw`: final contract award amount (`float64`, Nullable in 24 cases)
+  - `award_rate`: final award rate (`float64`, %)
+  - `award_date`: award decision date (`string`)
+  - `scheduled_price_krw`: final scheduled price (`float64`)
+  - `base_amount_krw`: base price (`float64`)
+  - `award_method_ko`: award decision method (`string`)
+
+### 6.4 `04_contracts.parquet` (Executed Contracts Master)
+- **Physical Primary Key (PK)**: `unified_contract_no` (`untyCntrctNo`, 100% unique)
+- **Row Count**: 115,945 rows
+- **Key Columns**: `unified_contract_no`, `contract_no`, `contract_round`, `contract_title_ko`, `contract_date`, `contract_method_ko`, `total_contract_amount_krw`, `contract_amount_krw`, `contract_agency_code`, `contract_agency_name_ko`, `demand_agency_code`, `demand_agency_name_ko`, `contractor_supplier_id` (FK), `contractor_name_ko`, `bid_notice_no`, `bid_notice_round`, `contract_period`, `is_joint_contract`
+
+### 6.5 `05_suppliers.parquet` (Supplier Dimension)
+- **Physical Primary Key (PK)**: `supplier_id` (`SUP_<32 hex>`, HMAC-SHA256 hash key)
+- **Row Count**: 143,842 enterprises (consolidated across bidders, winners, and contractors)
+- **Privacy Preservation**: Zero raw business registration numbers; masked string (`masked_biz_no`: `123-45-*****`) provided.
+- **Key Columns**:
+  - `supplier_id`: pseudonymized supplier identifier (PK)
+  - `supplier_name_ko`: registered company name (`string`)
+  - `masked_biz_no`: masked business registration number (`123-45-*****`)
+  - `is_bidder`, `is_winner`, `is_contractor`: participation role flags (`boolean`)
+  - `total_bids_in_scope`, `total_wins_in_scope`, `total_contracts_in_scope`: monthly activity counts (`int64`)
+  - `total_contract_amount_krw`: monthly total contracted amount (`float64`)
+
+### 6.6 `06_agencies.parquet` (Agency Dimension)
+- **Physical Primary Key (PK)**: `agency_code` (7-digit standard public agency code)
+- **Row Count**: 14,091 public entities
+- **Key Columns**:
+  - `agency_code`: standard agency code (PK)
+  - `agency_name_ko`: official agency name (`string`)
+  - `is_notice_agency`, `is_demand_agency`, `is_contract_agency`: role flags (`boolean`)
+  - `total_tenders_in_scope`, `total_contracts_in_scope`: monthly procurement activity counts (`int64`)
+
+### 6.7 `07_tender_contract_bridge.parquet` (Tender-Contract Relationship Bridge)
+- **Physical Primary Key (PK)**: `unified_contract_no`
+- **Row Count**: 40,677 rows (100% of tender-linked contracts; 75,268 unlinked contracts excluded)
+- **Key Columns**:
+  - `unified_contract_no`: contract identifier (PK, FK $\rightarrow$ `contracts`)
+  - `bid_notice_no`, `bid_notice_round`: tender notice key (FK $\rightarrow$ `tenders`)
+  - `tender_in_scope`: whether tender notice is in current scope window (`boolean`)
+  - `contract_amount_krw`: contract amount (`float64`)
+  - `contract_date`: contract date (`string`)
+  - `contractor_supplier_id`: contractor reference (FK $\rightarrow$ `suppliers`)

@@ -35,7 +35,7 @@ erDiagram
     tenders {
         string bid_notice_no PK
         string bid_notice_round PK
-        string bid_title_ko
+        string bid_notice_name_ko
         string notice_agency_code FK
         string demand_agency_code FK
         timestamp bid_notice_date
@@ -45,27 +45,30 @@ erDiagram
     }
 
     bidder_submissions {
-        string bid_notice_no PK, FK
-        string bid_notice_round PK, FK
-        string bidder_supplier_id PK, FK
-        double bid_amount_krw PK
-        string bid_submission_time PK
-        double opening_rank PK
-        double bid_rate
-        timestamp bid_submission_date
+        string bid_submission_id PK "BID_<32 hex>"
+        string bid_notice_no FK
+        string bid_notice_round FK
+        string bidder_supplier_id FK
+        boolean tender_in_scope
+        double bid_amount_krw
+        string bid_submission_time
+        double opening_rank
+        double bid_rate_pct
         boolean is_selected_winner
         string disqualification_reason_ko
     }
 
     award_outcomes {
-        string bid_notice_no PK, FK
-        string bid_notice_round PK, FK
-        string winner_supplier_id PK, FK
-        double award_amount_krw PK
-        string bid_submission_time PK
+        string award_outcome_id PK "AWD_<32 hex>"
+        string bid_notice_no FK
+        string bid_notice_round FK
+        string winner_supplier_id FK
+        boolean tender_in_scope
+        double award_amount_krw "Nullable (24 rows)"
         double award_rate
         double scheduled_price_krw
         double base_amount_krw
+        string award_method_ko
     }
 
     contracts {
@@ -77,7 +80,7 @@ erDiagram
         string demand_agency_code FK
         string contractor_supplier_id FK
         timestamp contract_date
-        int64 contract_amount_krw
+        int64 total_contract_amount_krw
         string contract_method_ko
     }
 
@@ -85,21 +88,24 @@ erDiagram
         string unified_contract_no PK, FK
         string bid_notice_no FK
         string bid_notice_round FK
-        string match_type
+        boolean tender_in_scope
     }
 
     suppliers {
-        string supplier_id PK
-        string business_reg_no_masked
+        string supplier_id PK "SUP_<32 hex>"
+        string masked_biz_no "123-45-*****"
         string supplier_name_ko
-        string ceo_name
-        string sigungu_ko
+        boolean is_bidder
+        boolean is_winner
+        boolean is_contractor
     }
 
     agencies {
         string agency_code PK
         string agency_name_ko
-        string agency_category
+        boolean is_notice_agency
+        boolean is_demand_agency
+        boolean is_contract_agency
     }
 ```
 
@@ -121,12 +127,12 @@ erDiagram
 
 ### 3.2 `bidder_submissions` (Individual Bidder Submissions)
 - **Concept**: A discrete bid submitted by an enterprise for a specific tender.
-- **Raw Deduplication Grain vs. Curated PK Distinction**:
-  - **Raw Deduplication Grain**: `(bid_notice_no, bid_notice_round, bidder_biz_no, opening_rank, disqualification_reason_ko, bid_amount_krw, bid_submission_time)` — 7-column lossless key used to collapse post-opening snapshot updates in raw API responses (0 duplicates, 100% lossless proven).
-  - **Curated Immutable Submission Identity**: Rank and disqualification reason are post-submission outcome attributes rather than submission-time properties. However, pure submission event candidates (Candidates A and B) exhibit collisions (432 and 841 rows respectively) due to unranked negotiation bidders. Therefore, the physical curated table retains the verified 7-column composite key to ensure complete data integrity.
-- **Primary Key**: `(bid_notice_no, bid_notice_round, bidder_supplier_id, opening_rank, disqualification_reason_ko, bid_amount_krw, bid_submission_time)`
+- **Physical Primary Key (Surrogate PK)**: `bid_submission_id` (`BID_<32 hex>`) — Deterministic SHA-256 surrogate key computed from the business grain canonical string (2,107,948 rows, 100% unique, 0 nulls).
+- **Business Reconciliation Grain**: `(bid_notice_no, bid_notice_round, bidder_supplier_id, opening_rank, disqualification_reason_ko, bid_amount_krw, bid_submission_time)` — 7-column lossless key used to collapse post-opening snapshot updates in raw API responses (0 duplicates, 100% lossless proven).
+- **Temporal Foreign Key**:
+  - `tender_in_scope: bool` — Flag indicating whether the bid maps to a tender published within the scope window (1,569,500 in-scope / 74.46%; 538,448 prior-notice / 25.54%).
 - **Foreign Keys**:
-  - `(bid_notice_no, bid_notice_round)` $\rightarrow$ `tenders` (Nullable: False)
+  - `(bid_notice_no, bid_notice_round)` $\rightarrow$ `tenders` (Temporal FK, Nullable: False)
   - `bidder_supplier_id` $\rightarrow$ `suppliers.supplier_id` (Nullable: False)
 - **Cardinality**: `tenders (1) : bidder_submissions (N)` (Range: 1 to 9,675 bids per tender, mean: 84.4).
 - **Verification**: **LIVE VERIFIED** (2,107,948 normalized rows in August 2026; lossless grain verified).
@@ -136,13 +142,14 @@ erDiagram
 
 ### 3.3 `award_outcomes` (Final Opening & Award Decisions)
 - **Concept**: The final adjudicated outcome indicating winning suppliers, prices, and rates.
-- **Intended Grain**: One award decision per lot/winner in a tender.
-- **Primary Key**: `(bid_notice_no, bid_notice_round, winner_supplier_id, award_amount_krw, bid_submission_time)`
-- **Empirical Metrics (August 2026 Audit)**:
-  - Total Awarded Rows: **17,315 rows**
-  - Candidate Key Distinct Count: **17,315** (Duplicate count: **0**, null component rate: 0.0%)
-  - Verification Status: **LIVE VERIFIED** (0 duplicates verified across entire pilot).
-  - Lot Identity Note: Because the official OpenAPI awards feed does not provide a separate lot/item number (`bid_classification_no`), `bid_submission_time` serves as the empirical discriminator for multi-award tenders.
+- **Physical Primary Key (Surrogate PK)**: `award_outcome_id` (`AWD_<32 hex>`) — Deterministic SHA-256 surrogate key computed from award event canonical string (17,315 rows, 100% unique, 0 nulls).
+- **Business Reconciliation Grain**: `(bid_notice_no, bid_notice_round, winner_supplier_id, award_amount_krw, bid_submission_time)` (17,315 rows match 100%).
+- **Award Amount Null Forensics (24 Cases) & Policy**:
+  - Exactly 24 rows out of 17,315 winners (0.14%) have NULL `award_amount_krw`.
+  - Cause: In opening snapshots of qualification reviews (`qualification_review`, 21 rows), lowest price (1 row), and small-sum private contracts (1 row), post-opening scoring was in progress, leaving the final contract award amount unfinalized in this feed.
+  - Imputation Policy: `DO NOT IMPUTE` — These values are strictly preserved as `NULL` without synthetic imputation. The surrogate key `award_outcome_id` guarantees complete uniqueness across all rows regardless of amount nullability.
+- **Temporal Foreign Key**:
+  - `tender_in_scope: bool` — 12,918 in-scope (74.61%), 4,397 prior-notice (25.39%).
 - **Foreign Keys**:
   - `(bid_notice_no, bid_notice_round)` $\rightarrow$ `tenders`
   - `winner_supplier_id` $\rightarrow$ `suppliers.supplier_id`
@@ -169,42 +176,51 @@ erDiagram
 
 ### 3.5 `tender_contract_bridge` (Tender-Contract Relationship Bridge)
 - **Concept**: Resolves the relationship between tender announcements and executed contracts.
-- **Intended Grain**: One row per contract mapping.
-- **Primary Key**: `unified_contract_no` (strictly unique; 0 contracts map to 2+ tenders)
-- **Relationship Type (Tender 1 : N Contract)**:
-  - Contracts mapping to 0 tenders: **75,268 rows (64.92%)**
-  - Contracts mapping to 1 tender: **40,677 rows (35.08%)**
-  - Contracts mapping to 2+ tenders: **0 rows (0.00%)**
-  - The empirical relationship is strictly **Tender (1) : Contract (0..N)**. Naive inner joins would discard all 75,268 non-tendered contracts.
+- **Intended Grain**: One row per tender-linked contract (unlinked contracts are excluded from the bridge and preserved exclusively in `contracts`).
+- **Primary Key**: `unified_contract_no` (strictly unique, 40,677 rows).
+- **Temporal Foreign Key**:
+  - `tender_in_scope: bool` — 9,138 in-scope (22.46%), 31,539 prior-notice (77.54%).
 - **Foreign Keys**:
   - `unified_contract_no` $\rightarrow$ `contracts.unified_contract_no`
   - `(bid_notice_no, bid_notice_round)` $\rightarrow$ `tenders.(bid_notice_no, bid_notice_round)` (Nullable: True)
 - **Empirical Ratios (August 2026)**:
-  - Contracts linked to tender notice: **35.08%** (40,677 rows)
-  - Contracts without tender notice: **64.92%** (75,268 rows)
-    - Private contracts (`contract_method == '수의계약'`): **72,418 rows** (subtotal 100% reconciled)
-    - Off-notice competitive contracts: **2,850 rows**
+  - Contracts linked to tender notice: **35.08%** (40,677 rows) $\rightarrow$ Recorded in bridge table.
+  - Contracts without tender notice: **64.92%** (75,268 rows) $\rightarrow$ Preserved in `contracts` only (private contracts 72,418, off-notice competitive 2,850).
+- **Design Rationale**: Prevents unintentional loss of non-tendered contracts during relational joins while cleanly supporting 1:N multi-contract allocations from a single tender (208 tenders).
 
 ---
 
 ### 3.6 `suppliers` (Supplier Dimension Table)
 - **Concept**: Unified dimension of all enterprises and sole proprietors participating in procurement.
-- **Primary Key**: `supplier_id` (**HMAC-SHA256** pseudonymized `SUP_<32 hex>` hash of normalized 10-digit registration number)
-- **Privacy Policy**: Raw business registration numbers are never published; public releases include a stable HMAC pseudo-ID (`supplier_id`) and masked string (`123-45-*****`).
+- **Primary Key**: `supplier_id` (**HMAC-SHA256** pseudonymized `SUP_<32 hex>` hash of normalized 10-digit registration number, 143,842 rows 100% unique).
+- **Privacy Policy**: Raw business registration numbers are never published; public releases include a stable HMAC pseudo-ID (`supplier_id`) and masked string (`masked_biz_no`: `123-45-*****`).
 - **Secret Key Separation**: The HMAC key is derived from a dedicated environment variable (`KONEPS_SUPPLIER_HMAC_KEY`), completely separated from the API key (`DATA_GO_KR_SERVICE_KEY`), and must remain stable across all dataset releases.
 - **Empirical Volume (August 2026)**:
   - Distinct Bidders: 123,777
-  - Distinct Winners: 13,376
+  - Distinct Winners: 13,374
   - Distinct Contractors: 59,233
   - Total Unique Suppliers: **143,842**
-  - Winner-to-Contract Match Rate: **85.0%** (11,370 overlapping enterprises)
 
 ---
 
 ### 3.7 `agencies` (Procuring & Demanding Agency Dimension)
 - **Concept**: Public sector bodies (national ministries, municipal authorities, state-owned corporations).
-- **Primary Key**: `agency_code` (7-digit official administrative code)
-- **Empirical Volume (August 2026)**: **14,091 unique public agencies** identified.
+- **Primary Key**: `agency_code` (7-digit official administrative code, 14,091 rows 100% unique).
+- **Empirical Volume (August 2026)**: Notice agencies: 5,690, demand agencies: 14,079, contract agencies: 12,347 $\rightarrow$ Total **14,091 unique public agencies** identified.
+
+---
+
+### 3.8 Physical Curated Tables Summary (`CURATED_SCHEMA_VERSION = "1.0.0"`)
+
+| # | Table File | Row Count | Primary Key (PK) | Compressed Size (MiB) | Verification Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | `01_tenders.parquet` | 32,895 | `(bid_notice_no, bid_notice_round)` | 1.99 | **VERIFIED (0 dup / 0 null)** |
+| 2 | `02_bidder_submissions.parquet` | 2,107,948 | `bid_submission_id` | 96.19 | **VERIFIED (0 dup / 0 null)** |
+| 3 | `03_award_outcomes.parquet` | 17,315 | `award_outcome_id` | 2.01 | **VERIFIED (0 dup / 0 null)** |
+| 4 | `04_contracts.parquet` | 115,945 | `unified_contract_no` | 10.21 | **VERIFIED (0 dup / 0 null)** |
+| 5 | `05_suppliers.parquet` | 143,842 | `supplier_id` | 4.36 | **VERIFIED (0 dup / 0 null)** |
+| 6 | `06_agencies.parquet` | 14,091 | `agency_code` | 0.21 | **VERIFIED (0 dup / 0 null)** |
+| 7 | `07_tender_contract_bridge.parquet` | 40,677 | `unified_contract_no` | 0.71 | **VERIFIED (0 dup / 0 null)** |
 
 ---
 

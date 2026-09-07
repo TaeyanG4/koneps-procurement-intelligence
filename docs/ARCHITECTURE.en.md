@@ -30,9 +30,11 @@ flowchart TD
     end
 
     subgraph S4["4. ML-Ready Curated Relational Layer"]
-        H --> L["Relational Separation<br/>(tenders, bidder_submissions, award_outcomes, contracts)"]
-        L --> N["Dimension & Bridge Mapping<br/>(suppliers, agencies, tender_contract_bridge)"]
-        N --> P["Kaggle Dataset Publication<br/>(Partitioned Parquet + Zstandard)"]
+        H --> L["Load Processed Parquet Feeds<br/>(bids, awards, contracts)"]
+        L --> M1["Curation Engine<br/>(scripts/build_curated.py<br/>src/koneps_intel/curate.py)"]
+        M1 --> N["Mathematical Reconciliation Gates<br/>(validate_curated_tables)"]
+        N --> O["7 Curated Relational Tables<br/>(tenders, submissions, awards,<br/>contracts, suppliers, agencies, bridge)"]
+        O --> P["Public Metrics Snapshot<br/>(docs/metrics/curated_YYYY_MM.json)"]
     end
 ```
 
@@ -73,6 +75,13 @@ flowchart TD
   - **Tender Notice (`tenders`) 1 → N Bidder Submissions (`bidder_submissions`)**: up to 9,675 bidders per tender.
   - **Tender Notice (`tenders`) 1 → 0..N Award Decisions (`award_outcomes`)**: single-winner (67.02%), failed/pending (32.82%), multi-winner/lot (0.16%).
   - **Tender Notice (`tenders`) 1 → 0..N Contracts (`contracts`)**: notice-linked contracts (35.08%), off-notice private/direct contracts (64.92%).
+
+### 6. Curated Relational & Privacy Preservation
+- `CURATED_SCHEMA_VERSION = "1.0.0"`: 7 normalized physical curated tables generated under `data/processed/curated/YYYY_MM/`.
+- Deterministic Surrogate PKs: `BID_<32 hex>` and `AWD_<32 hex>` preserve the underlying business grain while enabling O(1) single-column relational joins.
+- Zero PII Guarantee: Raw business registration numbers, representative names, telephone numbers, street addresses, and emails are purged; public releases include HMAC-SHA256 pseudonymized `supplier_id` and masked `masked_biz_no` (`123-45-*****`).
+- Secret Key Separation: API access credentials (`DATA_GO_KR_SERVICE_KEY`) and pseudonymization keys (`KONEPS_SUPPLIER_HMAC_KEY`) are kept strictly independent.
+- Temporal Foreign Key Tracking: The `tender_in_scope: bool` flag explicitly tracks cross-period boundary effects without discarding valid bids or contracts.
 
 ---
 
