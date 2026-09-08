@@ -1,5 +1,7 @@
 # South Korea Public Procurement Intelligence — KONEPS
 
+![KONEPS Procurement Intelligence Kaggle banner](assets/koneps_procurement_kaggle_banner.jpg)
+
 [한국어](README.md) | **English**
 
 [![CI Pipeline](https://github.com/TaeyanG4/koneps-procurement-intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/TaeyanG4/koneps-procurement-intelligence/actions)

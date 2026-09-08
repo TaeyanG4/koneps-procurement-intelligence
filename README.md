@@ -1,5 +1,7 @@
 # 대한민국 공공조달 인텔리전스 — KONEPS
 
+![KONEPS Procurement Intelligence Kaggle banner](assets/koneps_procurement_kaggle_banner.jpg)
+
 **한국어** | [English](README.en.md)
 
 [![CI Pipeline](https://github.com/TaeyanG4/koneps-procurement-intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/TaeyanG4/koneps-procurement-intelligence/actions)
