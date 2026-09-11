@@ -201,4 +201,3 @@ def configured_kaggle_owner() -> str | None:
     """Return a user-managed Kaggle owner from environment, if configured."""
     value = os.getenv("KAGGLE_USERNAME", "").strip()
     return value or None
-

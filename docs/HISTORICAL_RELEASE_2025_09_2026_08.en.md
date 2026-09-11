@@ -2,7 +2,7 @@
 
 [한국어](HISTORICAL_RELEASE_2025_09_2026_08.md) | **English**
 
-Validated scope: **2025-09-01 through 2026-08-31**  
+Validated scope: **2025-09-01 through 2026-08-31**
 Validation date: **2026-09-11**
 
 ## 1. Release Status

@@ -177,4 +177,3 @@ def run_historical_curation(
         return summary
 
     return summary
-
