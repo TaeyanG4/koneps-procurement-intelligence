@@ -44,11 +44,12 @@ This document tracks the implementation progress and development milestones for 
 - [x] 1-year historical MVP collected (2025-09-01 ~ 2026-08-31: 41,225,145 canonical raw rows)
 - [x] Historical normalized build audited (38,273,402 fact rows, 1,088 Parquet files, all integrity gates passed)
 - [x] Restartable month-by-month relational curation completed (12/12 months passed)
-- [x] Privacy-minimized Kaggle release payload built (7 ZSTD Parquet files, 2,612,589,280 bytes; supplier identity is HMAC `supplier_id` only)
+- [x] Privacy-minimized canonical Kaggle release built (7 ZSTD Parquet files, 2,612,589,280 bytes; supplier identity is HMAC `supplier_id` only)
+- [x] One-row-per-tender quickstart CSV built and published (470,937 rows, 29 columns, 155,062,563 bytes; no supplier identifiers)
 - [x] Source service license re-verified on 2026-09-11 (data.go.kr service page: scope of license unrestricted)
 - [ ] Official bidder outcome report export ingested into `data/processed/bidder_outcomes/` (optional enrichment role)
 - [ ] Leak-free ML feature tables generated (competition metrics, win rate history, agency price variance)
-- [x] Curated research dataset v1 packaged and documented locally (`data/processed/kaggle_release_202509_202608/`)
-- [x] Kaggle dataset v1 published (`taeyangg4/koneps-public-procurement-intelligence`) and live `ready` status, seven remote file byte sizes, cover, provenance, license, tags, and monthly update frequency verified
-- [x] Baseline EDA starter notebook published and executed successfully on Kaggle (`taeyangg4/koneps-procurement-5-minute-market-overview`, v2 `COMPLETE`)
-- [ ] Kaggle Data Explorer file/column descriptions reflected in the live backend (2026-09-11 readback still exposes zero parsed columns/descriptions despite complete local resource metadata; track separately from dataset correctness)
+- [x] Curated research dataset v2 packaged and documented locally (`data/processed/kaggle_release_202509_202608/`)
+- [x] Kaggle dataset v2 published (`taeyangg4/koneps-public-procurement-intelligence`): live `ready`, 8 user files, 2,767,651,843 bytes, cover, provenance, license, tags, monthly update frequency, and Usability 10/10 verified
+- [x] Baseline EDA starter notebook published and executed successfully on Kaggle (`taeyangg4/koneps-procurement-5-minute-market-overview`, v4 `COMPLETE`), with repaired Korean category mapping and quickstart CSV example
+- [x] Kaggle Data Explorer descriptions verified against repository metadata: 8/8 file descriptions and 160/160 column descriptions present and exact on v2

@@ -12,8 +12,9 @@ Collection, normalization, relational curation, and public Kaggle packaging are 
 - Canonical raw rows: **41,225,145**
 - Normalized Parquet rows: **38,273,402**
 - Monthly relational curation: **12/12 months PASS**
-- Public release files: **7 ZSTD Parquet files**
-- Public release size: **2,612,589,280 bytes** (about 2.61 GB)
+- Canonical public files: **7 ZSTD Parquet files**, **2,612,589,280 bytes**
+- Kaggle v2 quickstart: **1 CSV**, **470,937 rows x 29 columns**, **155,062,563 bytes**
+- Kaggle v2 user-facing total: **8 files**, **2,767,651,843 bytes**
 
 Normalized fact rows reconcile exactly:
 
@@ -25,6 +26,7 @@ Normalized fact rows reconcile exactly:
 
 | File | Grain | Rows | Columns | Bytes |
 | :--- | :--- | ---: | ---: | ---: |
+| `00_quickstart_tender_summary.csv` | tender + safe award/contract summaries | 470,937 | 29 | 155,062,563 |
 | `01_tenders.parquet` | tender notice + round | 470,937 | 32 | 29,781,660 |
 | `02_bidder_submissions.parquet` | individual bid submission | 35,907,867 | 28 | 2,396,046,821 |
 | `03_award_outcomes.parquet` | selected award outcome | 305,995 | 25 | 34,718,596 |
@@ -83,4 +85,4 @@ python scripts/build_historical_curated.py --start 2025-09-01 --end 2026-08-31 -
 python scripts/build_kaggle_release.py --start 2025-09-01 --end 2026-08-31
 ```
 
-The final local public payload is generated under `data/processed/kaggle_release_202509_202608/`. Public Kaggle v1 (`taeyangg4/koneps-public-procurement-intelligence`) was published on 2026-09-11. Live readback confirms `ready` status, byte-for-byte sizes for all seven remote files, the custom cover, provenance, license, and monthly update frequency. Starter EDA notebook v2 (`taeyangg4/koneps-procurement-5-minute-market-overview`) also completed successfully in the Kaggle runtime. Data Explorer file/column descriptions are tracked separately because the live API had not exposed parsed columns/descriptions on the same date.
+The final local public payload is generated under `data/processed/kaggle_release_202509_202608/`. Public Kaggle v2 (`taeyangg4/koneps-public-procurement-intelligence`) was published on 2026-09-11. Live readback confirms `ready` status, eight user files totaling 2,767,651,843 bytes, the custom cover, provenance, license, monthly update frequency, and Usability 10/10. Data Explorer matches repository metadata exactly for **8/8 file descriptions and 160/160 column descriptions**. Starter EDA notebook v4 (`taeyangg4/koneps-procurement-5-minute-market-overview`) fixes the Korean category mapping, adds the single-file quickstart path, and completed successfully in the Kaggle runtime.

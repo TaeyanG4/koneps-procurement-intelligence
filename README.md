@@ -354,10 +354,11 @@ koneps-procurement-intelligence/
 
 ## 14. 캐글 데이터셋 패키징 가이드
 
-2025-09-01 ~ 2026-08-31 역사 데이터의 Kaggle v1 payload가 생성되어 있으며, 공개 Dataset은 [KONEPS Public Procurement Intelligence](https://www.kaggle.com/datasets/taeyangg4/koneps-public-procurement-intelligence)에서 제공합니다.
+2025-09-01 ~ 2026-08-31 역사 데이터의 Kaggle v2 payload가 공개되어 있으며, [KONEPS Public Procurement Intelligence](https://www.kaggle.com/datasets/taeyangg4/koneps-public-procurement-intelligence)에서 제공합니다. 처음 사용하는 경우에는 조인 없이 바로 분석할 수 있는 `00_quickstart_tender_summary.csv`부터 여는 것을 권장합니다.
 
 | 파일 | 행 수 | 역할 |
 | :--- | ---: | :--- |
+| `00_quickstart_tender_summary.csv` | 470,937 | 공고 1행 기준 quickstart CSV; 영문 사업구분/계약방식과 낙찰·계약 요약 포함 |
 | `01_tenders.parquet` | 470,937 | 입찰공고 마스터 |
 | `02_bidder_submissions.parquet` | 35,907,867 | 개별 투찰 제출 |
 | `03_award_outcomes.parquet` | 305,995 | 선정 낙찰 결과 |
@@ -371,7 +372,7 @@ python scripts/build_historical_curated.py --start 2025-09-01 --end 2026-08-31 -
 python scripts/build_kaggle_release.py --start 2025-09-01 --end 2026-08-31
 ```
 
-최종 payload는 `data/processed/kaggle_release_202509_202608/`에 생성되며 총 크기는 약 2.61 GB입니다. 2026-09-11 live readback에서 Kaggle 상태 `ready`, 7개 파일의 원격 바이트 크기 일치, 커버, 출처, `other` 라이선스, 월별 업데이트 주기를 확인했습니다. Kaggle metadata 라이선스는 원 서비스의 현재 `이용허락범위 제한 없음`을 정확히 전달하기 위해 서비스 페이지에 명시되지 않은 Creative Commons/공공누리 유형을 임의로 부여하지 않고 `other`를 사용합니다. 빠른 분석 예시는 [KONEPS Procurement: 5-Minute Market Overview](https://www.kaggle.com/code/taeyangg4/koneps-procurement-5-minute-market-overview)에서 제공하며, v2가 Kaggle 런타임에서 정상 완료되었습니다. 상세 검증은 [HISTORICAL_RELEASE_2025_09_2026_08.md](docs/HISTORICAL_RELEASE_2025_09_2026_08.md)를 참조하십시오.
+최종 payload는 `data/processed/kaggle_release_202509_202608/`에 생성됩니다. canonical 관계형 데이터는 7개 ZSTD Parquet, 2,612,589,280 bytes이며, v2는 여기에 155,062,563-byte quickstart CSV를 추가해 Kaggle 사용자 파일 8개, 총 2,767,651,843 bytes입니다. 2026-09-11 live readback에서 Kaggle 상태 `ready`, 8개 파일의 원격 바이트 크기, Data Explorer 파일 설명 **8/8**, 컬럼 설명 **160/160**의 repository metadata와의 exact 일치, 커버, 출처, `other` 라이선스, 월별 업데이트 주기와 **Usability 10/10**을 확인했습니다. Kaggle metadata 라이선스는 원 서비스의 현재 `이용허락범위 제한 없음`을 정확히 전달하기 위해 서비스 페이지에 명시되지 않은 Creative Commons/공공누리 유형을 임의로 부여하지 않고 `other`를 사용합니다. 빠른 분석 예시는 [KONEPS Procurement: 5-Minute Market Overview](https://www.kaggle.com/code/taeyangg4/koneps-procurement-5-minute-market-overview)에서 제공하며, category mapping을 보정하고 quickstart CSV 예제를 추가한 v4가 Kaggle 런타임에서 `COMPLETE`로 검증되었습니다. 상세 검증은 [HISTORICAL_RELEASE_2025_09_2026_08.md](docs/HISTORICAL_RELEASE_2025_09_2026_08.md)를 참조하십시오.
 
 ---
 
@@ -391,7 +392,7 @@ python scripts/build_kaggle_release.py --start 2025-09-01 --end 2026-08-31
 
 - **인증키 보안**: 서비스 인증키는 절대 Git에 커밋하지 않으며, 환경 변수(`.env`)로만 관리됩니다.
 - **코드 중심 저장소**: 대용량 데이터 파일은 `.gitignore`에 의해 제외되며, 깃허브에는 소스 코드와 설정만 추적됩니다.
-- **개인정보 및 식별자 보호**: Kaggle v1 공개본은 전용 비밀키 기반 HMAC-SHA256 `supplier_id`만 사용하며 원문/마스킹 사업자등록번호와 공급업체 상호명을 모두 제외합니다.
+- **개인정보 및 식별자 보호**: Kaggle 공개본은 전용 비밀키 기반 HMAC-SHA256 `supplier_id`만 사용하며 원문/마스킹 사업자등록번호와 공급업체 상호명을 모두 제외합니다. Quickstart CSV에는 공급업체 식별자 자체를 포함하지 않습니다.
 - **라이선스 및 재배포 준수**: 2026-09-11 공공데이터포털의 표준서비스 페이지를 재확인했으며 현재 이용허락범위는 `제한 없음`입니다. 별도 포털 export를 향후 포함할 경우 해당 소스는 별도 재검증합니다.
 
 ---
@@ -411,8 +412,8 @@ python scripts/build_kaggle_release.py --start 2025-09-01 --end 2026-08-31
 | **파일럿 감사 보정 및 관계형 조인 모델** | 검증 완료 | 기간 오염 제거, 무손실 투찰 그레인 확정, [RELATIONAL_MODEL.md](docs/RELATIONAL_MODEL.md) 규격화 완료. |
 | **관계형 큐레이티드 테이블** | 검증 완료 | 8월 파일럿 및 2025-09~2026-08 전 12개월에 대해 7개 관계형 테이블, 월별 reconciliation/privacy gate 통과. |
 | **과거 1년 치 라이브 수집** | 검증 완료 | 41,225,145 canonical raw rows 수집, 38,273,402 normalized fact rows 감사 완료. |
-| **Kaggle v1 로컬 공개본** | 패키징 완료 | 7개 ZSTD Parquet, 2,612,589,280 bytes, supplier company identity 최소화 및 SHA-256 receipt 완료. |
-| **Kaggle v1 실제 배포** | 배포 완료 | 공개 Dataset `ready`, 7개 원격 파일 byte-perfect readback, 커버/출처/라이선스/월별 주기 검증 및 스타터 EDA v2 `COMPLETE`. Data Explorer file/column description 반영은 플랫폼 후속 확인 항목으로 별도 추적. |
+| **Kaggle canonical 로컬 공개본** | 패키징 완료 | 7개 ZSTD Parquet, 2,612,589,280 bytes, supplier company identity 최소화 및 SHA-256 receipt 완료. |
+| **Kaggle v2 실제 배포** | 배포 완료 | canonical 7개 Parquet + 470,937행 quickstart CSV 공개, Dataset `ready`, 총 2,767,651,843 bytes, Data Explorer 8/8 파일·160/160 컬럼 설명 exact readback, Usability 10/10, 스타터 EDA v4 `COMPLETE`. |
 
 ---
 
@@ -423,5 +424,5 @@ python scripts/build_kaggle_release.py --start 2025-09-01 --end 2026-08-31
 3. ~~**파일럿 감사 보정 및 관계형 조인 모델 수립**~~: 완료 ([RELATIONAL_MODEL.md](docs/RELATIONAL_MODEL.md) 확정).
 4. ~~**관계형 큐레이티드 테이블 구현**~~: 12개월 전체 월별 재시작 가능한 큐레이션 및 검증 완료.
 5. ~~**1년 MVP 수집·감사·Kaggle payload 패키징**~~: 2025-09~2026-08 공개본 및 bilingual release report 생성 완료.
-6. ~~**Kaggle 연구 데이터셋 v1 공개**~~: 공개 Dataset v1과 스타터 EDA v2 배포 및 Kaggle 실행 검증 완료. Data Explorer 설명 반영은 별도 플랫폼 후속 항목으로 추적.
+6. ~~**Kaggle 연구 데이터셋 공개 및 사용성 마감**~~: Dataset v2, 단일 quickstart CSV, Data Explorer 160/160 설명, Usability 10/10, 스타터 EDA v4 배포 및 Kaggle 실행 검증 완료.
 7. **누수 없는 ML feature layer 구축**: 시점 이전 정보만 사용한 supplier/agency/market history features 생성.

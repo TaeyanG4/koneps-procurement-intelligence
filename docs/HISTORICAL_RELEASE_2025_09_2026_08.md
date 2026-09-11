@@ -12,8 +12,9 @@
 - Canonical raw rows: **41,225,145**
 - 정규화 Parquet rows: **38,273,402**
 - 월별 관계형 큐레이션: **12/12개월 PASS**
-- 최종 공개 파일: **7개 ZSTD Parquet**
-- 최종 공개 크기: **2,612,589,280 bytes** (약 2.61 GB)
+- canonical 공개 파일: **7개 ZSTD Parquet**, **2,612,589,280 bytes**
+- Kaggle v2 quickstart: **1개 CSV**, **470,937행 × 29컬럼**, **155,062,563 bytes**
+- Kaggle v2 사용자 파일 합계: **8개**, **2,767,651,843 bytes**
 
 정규화 fact 행 수는 정확히 다음과 같이 대사됩니다.
 
@@ -25,6 +26,7 @@
 
 | 파일 | 그레인 | 행 수 | 컬럼 수 | 크기(bytes) |
 | :--- | :--- | ---: | ---: | ---: |
+| `00_quickstart_tender_summary.csv` | 입찰공고 + 낙찰/계약 안전 집계 | 470,937 | 29 | 155,062,563 |
 | `01_tenders.parquet` | 입찰공고 + 공고차수 | 470,937 | 32 | 29,781,660 |
 | `02_bidder_submissions.parquet` | 개별 투찰 제출 | 35,907,867 | 28 | 2,396,046,821 |
 | `03_award_outcomes.parquet` | 최종 선정 낙찰 결과 | 305,995 | 25 | 34,718,596 |
@@ -83,4 +85,4 @@ python scripts/build_historical_curated.py --start 2025-09-01 --end 2026-08-31 -
 python scripts/build_kaggle_release.py --start 2025-09-01 --end 2026-08-31
 ```
 
-최종 로컬 공개본은 `data/processed/kaggle_release_202509_202608/`에 생성됩니다. 2026-09-11 공개 Kaggle v1(`taeyangg4/koneps-public-procurement-intelligence`) 게시를 완료했으며, 서버 상태 `ready`, 7개 원격 파일의 바이트 크기 일치, 커버, 출처, 라이선스, 월별 업데이트 주기를 live readback으로 확인했습니다. 스타터 EDA Notebook(`taeyangg4/koneps-procurement-5-minute-market-overview`) v2도 Kaggle 런타임에서 `COMPLETE`로 실행되었습니다. Data Explorer의 파일/컬럼 설명은 같은 날 live API에서 아직 노출되지 않아 플랫폼 메타데이터 후속 확인 항목으로 별도 추적합니다.
+최종 로컬 공개본은 `data/processed/kaggle_release_202509_202608/`에 생성됩니다. 2026-09-11 공개 Kaggle v2(`taeyangg4/koneps-public-procurement-intelligence`) 게시를 완료했으며, 서버 상태 `ready`, 8개 사용자 파일과 2,767,651,843-byte 총 크기, 커버, 출처, 라이선스, 월별 업데이트 주기, Usability 10/10을 live readback으로 확인했습니다. Data Explorer는 repository metadata와 **8/8 파일 설명 및 160/160 컬럼 설명이 exact 일치**합니다. 스타터 EDA Notebook(`taeyangg4/koneps-procurement-5-minute-market-overview`) v4는 한글 사업구분/계약방식 매핑을 보정하고 quickstart CSV 사용 예제를 추가한 상태로 Kaggle 런타임에서 `COMPLETE`로 실행되었습니다.

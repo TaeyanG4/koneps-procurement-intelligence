@@ -349,10 +349,11 @@ For exhaustive data types, Korean source field names, and nullability constraint
 
 ## 14. Kaggle Dataset Packaging Guide
 
-The Kaggle v1 payload for 2025-09-01 through 2026-08-31 is complete and published as [KONEPS Public Procurement Intelligence](https://www.kaggle.com/datasets/taeyangg4/koneps-public-procurement-intelligence).
+The Kaggle v2 payload for 2025-09-01 through 2026-08-31 is published as [KONEPS Public Procurement Intelligence](https://www.kaggle.com/datasets/taeyangg4/koneps-public-procurement-intelligence). New users should start with `00_quickstart_tender_summary.csv`, which is immediately usable without relational joins.
 
 | File | Rows | Role |
 | :--- | ---: | :--- |
+| `00_quickstart_tender_summary.csv` | 470,937 | one-row-per-tender quickstart with English category helpers and award/contract summaries |
 | `01_tenders.parquet` | 470,937 | tender master |
 | `02_bidder_submissions.parquet` | 35,907,867 | individual bid submissions |
 | `03_award_outcomes.parquet` | 305,995 | selected award outcomes |
@@ -366,7 +367,7 @@ python scripts/build_historical_curated.py --start 2025-09-01 --end 2026-08-31 -
 python scripts/build_kaggle_release.py --start 2025-09-01 --end 2026-08-31
 ```
 
-The final payload is written to `data/processed/kaggle_release_202509_202608/` and is about 2.61 GB. On 2026-09-11, live Kaggle readback confirmed `ready` status, exact remote byte sizes for all seven files, the custom cover, source provenance, the `other` license, and monthly update frequency. The metadata uses `other` rather than inventing a Creative Commons license, faithfully reflecting the source service's current unrestricted scope of license. A fast public walkthrough is available as [KONEPS Procurement: 5-Minute Market Overview](https://www.kaggle.com/code/taeyangg4/koneps-procurement-5-minute-market-overview); v2 completed successfully in the Kaggle runtime. See [HISTORICAL_RELEASE_2025_09_2026_08.en.md](docs/HISTORICAL_RELEASE_2025_09_2026_08.en.md) for full validation details.
+The final payload is written to `data/processed/kaggle_release_202509_202608/`. The canonical relational release is seven ZSTD Parquet files totaling 2,612,589,280 bytes; v2 adds a 155,062,563-byte quickstart CSV for eight Kaggle user files and 2,767,651,843 total bytes. On 2026-09-11, live Kaggle readback confirmed `ready` status, remote file sizes, exact repository-metadata agreement for **8/8 file descriptions** and **160/160 column descriptions**, the custom cover, source provenance, the `other` license, monthly update frequency, and **Usability 10/10**. The metadata uses `other` rather than inventing a Creative Commons license, faithfully reflecting the source service's current unrestricted scope of license. A fast public walkthrough is available as [KONEPS Procurement: 5-Minute Market Overview](https://www.kaggle.com/code/taeyangg4/koneps-procurement-5-minute-market-overview); v4 fixes category mapping, includes the quickstart CSV path, and completed successfully in the Kaggle runtime. See [HISTORICAL_RELEASE_2025_09_2026_08.en.md](docs/HISTORICAL_RELEASE_2025_09_2026_08.en.md) for full validation details.
 
 ---
 
@@ -386,7 +387,7 @@ The final payload is written to `data/processed/kaggle_release_202509_202608/` a
 
 - **No Secrets in Git**: Service keys are never committed and must be provided via local `.env`.
 - **Code Only in GitHub**: Collected procurement datasets are excluded from Git (`.gitignore`) and distributed via Kaggle Datasets.
-- **Privacy & Identifier Protection**: The Kaggle v1 payload uses only a dedicated-secret HMAC-SHA256 `supplier_id`; raw/masked business registration numbers and supplier company names are excluded.
+- **Privacy & Identifier Protection**: The Kaggle release uses only a dedicated-secret HMAC-SHA256 `supplier_id`; raw/masked business registration numbers and supplier company names are excluded. The quickstart CSV contains no supplier identifier at all.
 - **Data Provenance & License Verification**: The standard service page was re-verified on 2026-09-11 and currently lists its scope of license as unrestricted. Any separate KONEPS portal export added later will be verified independently.
 
 ---
@@ -406,8 +407,8 @@ The final payload is written to `data/processed/kaggle_release_202509_202608/` a
 | **Pilot Audit Correction & Relational Model** | VERIFIED | Scoped event-date filtering, lossless deduplication grain, and [RELATIONAL_MODEL.md](docs/RELATIONAL_MODEL.md) specification completed. |
 | **Relational Curated Tables** | VERIFIED | Seven relational tables validated on the August pilot and all 12 months from 2025-09 through 2026-08 with monthly reconciliation/privacy gates. |
 | **Historical 1-Year Live Crawl** | VERIFIED | 41,225,145 canonical raw rows collected and 38,273,402 normalized fact rows audited. |
-| **Local Kaggle v1 Payload** | PACKAGED | Seven ZSTD Parquet files, 2,612,589,280 bytes, privacy-minimized supplier identity, per-file SHA-256 receipts. |
-| **Live Kaggle v1 Publication** | PUBLISHED | Public Dataset is `ready`; seven remote file sizes match exactly; cover/provenance/license/monthly frequency are verified; starter EDA v2 is `COMPLETE`. Data Explorer file/column-description reflection remains a separate platform follow-up. |
+| **Local Kaggle Canonical Payload** | PACKAGED | Seven ZSTD Parquet files, 2,612,589,280 bytes, privacy-minimized supplier identity, per-file SHA-256 receipts. |
+| **Live Kaggle v2 Publication** | PUBLISHED | Canonical seven Parquet files plus the 470,937-row quickstart CSV are public; Dataset is `ready`, total size is 2,767,651,843 bytes, Data Explorer descriptions are exact for 8/8 files and 160/160 columns, Usability is 10/10, and starter EDA v4 is `COMPLETE`. |
 
 ---
 
@@ -418,5 +419,5 @@ The final payload is written to `data/processed/kaggle_release_202509_202608/` a
 3. ~~**Correct Pilot Audit & Formulate Relational Model**~~: Completed (lossless grain verified, [RELATIONAL_MODEL.md](docs/RELATIONAL_MODEL.md) published).
 4. ~~**Implement Relational Curated Tables**~~: Completed as restartable monthly curation across the full 12-month scope.
 5. ~~**Collect, audit, and package the 1-Year MVP**~~: Completed for 2025-09 through 2026-08 with bilingual release validation documentation.
-6. ~~**Publish Kaggle Research Dataset v1**~~: Public Dataset v1 and starter EDA v2 are live and execution-verified; Data Explorer description reflection is tracked separately as a platform follow-up.
+6. ~~**Publish and finish Kaggle usability**~~: Dataset v2, the single-file quickstart path, 160/160 Data Explorer descriptions, Usability 10/10, and starter EDA v4 are live and execution-verified.
 7. **Build the leak-free ML feature layer**: Generate supplier, agency, and market history features using only information available before each observation time.
