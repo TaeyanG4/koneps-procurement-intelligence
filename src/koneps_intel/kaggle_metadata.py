@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import csv
 from pathlib import Path
 from typing import Any, Dict
 
@@ -11,13 +12,22 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from koneps_intel.release import PUBLIC_DIMENSION_FILES, PUBLIC_FACT_FILES
+from koneps_intel.quickstart import (
+    QUICKSTART_COLUMNS,
+    QUICKSTART_FILENAME,
+    QUICKSTART_KAGGLE_TYPES,
+)
 
 
 DATASET_TITLE = "KONEPS Public Procurement Intelligence"
-DATASET_SUBTITLE = "South Korea tenders, 35.9M bids, awards and contracts"
+DATASET_SUBTITLE = "Ready-to-use tender CSV + 35.9M bids, awards and contracts"
 DEFAULT_SLUG = "koneps-public-procurement-intelligence"
 
 FILE_DESCRIPTIONS = {
+    QUICKSTART_FILENAME: (
+        "Recommended first file: one row per tender with English category helpers and "
+        "aggregated selected-award and linked-contract outcomes for immediate EDA."
+    ),
     "01_tenders.parquet": "One row per KONEPS tender notice and notice round in the Sep 2025-Aug 2026 release scope.",
     "02_bidder_submissions.parquet": "One row per bidder submission/opening record. Supplier identity is pseudonymized; company names and business registration numbers are excluded.",
     "03_award_outcomes.parquet": "Selected-winner subset of bidder submissions, with final award values and pricing context where available.",
@@ -109,6 +119,19 @@ COLUMN_DESCRIPTIONS = {
     "total_contract_amount_krw": "Cumulative total contract amount reported by KONEPS, in KRW; source negative values are preserved.",
     "unified_contract_no": "National unified contract identifier and public contract-table key.",
     "winner_supplier_id": "Pseudonymized HMAC-SHA256 supplier reference for the selected winner.",
+    "business_division_en": "Convenience English grouping of the common Korean KONEPS business-division labels; unmatched non-empty source labels are preserved.",
+    "contract_method_group_en": "Convenience English grouping of common KONEPS contract methods; unmatched non-empty source labels are preserved.",
+    "has_selected_award": "True when at least one selected award outcome links to this tender in the public release scope.",
+    "selected_award_count": "Number of selected award-outcome rows linked to this tender in the public release scope.",
+    "valid_award_rate_count": "Number of linked selected award outcomes whose reported award_rate is between 0 and 100 percent inclusive.",
+    "median_award_rate_pct": "Median reported award rate among linked selected outcomes with award_rate between 0 and 100 percent inclusive.",
+    "mean_award_rate_pct": "Mean reported award rate among linked selected outcomes with award_rate between 0 and 100 percent inclusive.",
+    "first_award_date": "Earliest selected award date linked to this tender in the release scope.",
+    "last_award_date": "Latest selected award date linked to this tender in the release scope.",
+    "has_linked_contract": "True when at least one contract bridge row links this tender to a public contract.",
+    "linked_contract_count": "Number of distinct unified contract identifiers linked to this tender.",
+    "first_contract_date": "Earliest contract date among in-scope contract links for this tender.",
+    "last_contract_date": "Latest contract date among in-scope contract links for this tender.",
 }
 
 
@@ -144,12 +167,26 @@ def build_dataset_metadata(
 
     resources = []
     release_files = list(PUBLIC_FACT_FILES + PUBLIC_DIMENSION_FILES)
+    if (release_dir / QUICKSTART_FILENAME).exists():
+        release_files.insert(0, QUICKSTART_FILENAME)
     for filename in release_files:
         path = release_dir / filename
         if not path.exists():
             raise FileNotFoundError(path)
-        schema = pq.ParquetFile(path).schema_arrow
-        unknown = [field.name for field in schema if field.name not in COLUMN_DESCRIPTIONS]
+        if filename == QUICKSTART_FILENAME:
+            with path.open("r", encoding="utf-8", newline="") as handle:
+                field_names = next(csv.reader(handle), [])
+            if field_names != QUICKSTART_COLUMNS:
+                raise ValueError(
+                    "Quickstart CSV header does not match the published metadata schema: "
+                    f"expected {QUICKSTART_COLUMNS}, got {field_names}"
+                )
+            field_types = QUICKSTART_KAGGLE_TYPES
+        else:
+            schema = pq.ParquetFile(path).schema_arrow
+            field_names = [field.name for field in schema]
+            field_types = {field.name: _kaggle_type(field.type) for field in schema}
+        unknown = [name for name in field_names if name not in COLUMN_DESCRIPTIONS]
         if unknown:
             raise ValueError(f"Missing Kaggle column descriptions for {filename}: {unknown}")
         resources.append(
@@ -159,11 +196,11 @@ def build_dataset_metadata(
                 "schema": {
                     "fields": [
                         {
-                            "name": field.name,
-                            "description": COLUMN_DESCRIPTIONS[field.name],
-                            "type": _kaggle_type(field.type),
+                            "name": name,
+                            "description": COLUMN_DESCRIPTIONS[name],
+                            "type": field_types[name],
                         }
-                        for field in schema
+                        for name in field_names
                     ]
                 },
             }
@@ -173,14 +210,16 @@ def build_dataset_metadata(
         "title": DATASET_TITLE,
         "subtitle": DATASET_SUBTITLE,
         "description": (
-            "Research-ready relational public procurement data from South Korea's KONEPS, covering "
-            "2025-09-01 through 2026-08-31. The release contains 470,937 tenders, 35.9 million bidder "
-            "submissions, 305,995 selected award outcomes, 1.89 million contracts, pseudonymized "
-            "suppliers, public agencies, and a tender-contract bridge. Supplier company names and raw "
-            "or masked business registration numbers are excluded; supplier identity uses stable "
-            "HMAC-SHA256 IDs. Source: Public Procurement Service via data.go.kr KONEPS Public Data "
-            "Open Standard Service. The source service page was re-verified on 2026-09-11 and lists "
-            "its scope of license as unrestricted: https://www.data.go.kr/en/data/15023678/standard.do"
+            "Research-ready public procurement data from South Korea's KONEPS, covering 2025-09-01 "
+            "through 2026-08-31. Start with 00_quickstart_tender_summary.csv: 470,937 one-row-per-tender "
+            "records with English business/contract-method helpers plus aggregated award and contract "
+            "outcomes. The canonical relational release also contains 35.9 million bidder submissions, "
+            "305,995 selected award outcomes, 1.89 million contracts, pseudonymized suppliers, public "
+            "agencies, and a tender-contract bridge. Supplier company names and raw or masked business "
+            "registration numbers are excluded; supplier identity uses stable HMAC-SHA256 IDs. Source: "
+            "Public Procurement Service via data.go.kr KONEPS Public Data Open Standard Service. The "
+            "source service page was re-verified on 2026-09-11 and lists its scope of license as "
+            "unrestricted: https://www.data.go.kr/en/data/15023678/standard.do"
         ),
         "id": f"{owner}/{slug}",
         "licenses": [{"name": "other"}],

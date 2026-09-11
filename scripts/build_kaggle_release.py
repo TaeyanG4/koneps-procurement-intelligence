@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the seven-file public Kaggle release from verified historical curation."""
+"""Build the canonical Parquet release plus its flat Kaggle quickstart CSV."""
 from __future__ import annotations
 
 import argparse
@@ -10,6 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from koneps_intel.release import build_kaggle_release
+from koneps_intel.quickstart import build_quickstart_csv
 
 
 def main() -> None:
@@ -44,12 +45,17 @@ def main() -> None:
         report_path=Path(args.report),
         force=args.force,
     )
+    quickstart = build_quickstart_csv(Path(args.out))
     print("=== KONEPS KAGGLE RELEASE ===")
     print(f"scope       : {report['scope_start']} .. {report['scope_end']}")
     print(f"source months: {report['source_months']}")
     print(f"files       : {len(report['files'])}")
     print(f"bytes       : {report['total_release_bytes']:,}")
     print(f"passed      : {report['validation']['passed']}")
+    print(
+        f"quickstart  : {quickstart['file']} "
+        f"({quickstart['rows']:,} rows, {quickstart['bytes']:,} bytes)"
+    )
 
 
 if __name__ == "__main__":
