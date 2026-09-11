@@ -22,7 +22,12 @@ def main() -> None:
     parser.add_argument("--feed", choices=["all", "bids", "awards", "contracts"], default="all")
     parser.add_argument("--force", action="store_true", help="Rebuild existing Parquet files")
     parser.add_argument("--no-partition", action="store_true", help="Do not partition by year/month")
+    parser.add_argument("--start", help="Optional scoped build start date (YYYY-MM-DD)")
+    parser.add_argument("--end", help="Optional scoped build end date (YYYY-MM-DD)")
     args = parser.parse_args()
+
+    if (args.start is None) != (args.end is None):
+        parser.error("--start and --end must be provided together")
 
     logger = get_logger("koneps_build")
     raw_root = Path(args.raw)
@@ -40,6 +45,8 @@ def main() -> None:
             feed=feed,
             force=args.force,
             partition_by_date=partition,
+            start=args.start,
+            end=args.end,
         )
         reports.append(rep)
         logger.info(

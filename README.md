@@ -354,21 +354,24 @@ koneps-procurement-intelligence/
 
 ## 14. 캐글 데이터셋 패키징 가이드
 
-1. **데이터셋 구성**:
-   - `bids.parquet`, `awards.parquet`, `contracts.parquet`, `bidder_outcomes.parquet`로 구성된 스타/스노우플레이크 스키마 제공.
-   - 대용량 데이터는 연도별 분할 또는 단일 압축 Parquet(Zstandard)로 패키징.
-2. **Kaggle Metadata (`dataset-metadata.json`)**:
-   ```json
-   {
-     "title": "South Korea Public Procurement Intelligence — KONEPS",
-     "id": "your-kaggle-username/south-korea-public-procurement-intelligence-koneps",
-     "licenses": [{"name": "CC-BY-4.0"}]
-   }
-   ```
-3. **Kaggle CLI 배포**:
-   ```bash
-   kaggle datasets create -p data/processed/ --public
-   ```
+2025-09-01 ~ 2026-08-31 역사 데이터의 로컬 Kaggle v1 payload가 생성되어 있습니다.
+
+| 파일 | 행 수 | 역할 |
+| :--- | ---: | :--- |
+| `01_tenders.parquet` | 470,937 | 입찰공고 마스터 |
+| `02_bidder_submissions.parquet` | 35,907,867 | 개별 투찰 제출 |
+| `03_award_outcomes.parquet` | 305,995 | 선정 낙찰 결과 |
+| `04_contracts.parquet` | 1,894,598 | 계약 마스터 |
+| `05_suppliers.parquet` | 261,474 | HMAC 가명화 공급업체 차원 |
+| `06_agencies.parquet` | 27,214 | 공공기관 차원 |
+| `07_tender_contract_bridge.parquet` | 637,107 | 공고-계약 연결 브릿지 |
+
+```bash
+python scripts/build_historical_curated.py --start 2025-09-01 --end 2026-08-31 --processed data/processed/historical_202509_202608
+python scripts/build_kaggle_release.py --start 2025-09-01 --end 2026-08-31
+```
+
+최종 payload는 `data/processed/kaggle_release_202509_202608/`에 생성되며 총 크기는 약 2.61 GB입니다. 상세 검증은 [HISTORICAL_RELEASE_2025_09_2026_08.md](docs/HISTORICAL_RELEASE_2025_09_2026_08.md)를 참조하십시오. Kaggle metadata 라이선스는 원 서비스의 현재 `이용허락범위 제한 없음`을 정확히 전달하기 위해 서비스 페이지에 명시되지 않은 Creative Commons/공공누리 유형을 임의로 부여하지 않고 `other`를 사용합니다.
 
 ---
 
@@ -388,8 +391,8 @@ koneps-procurement-intelligence/
 
 - **인증키 보안**: 서비스 인증키는 절대 Git에 커밋하지 않으며, 환경 변수(`.env`)로만 관리됩니다.
 - **코드 중심 저장소**: 대용량 데이터 파일은 `.gitignore`에 의해 제외되며, 깃허브에는 소스 코드와 설정만 추적됩니다.
-- **개인정보 및 식별자 보호**: 공공 데이터에 포함된 대표자명 및 사업자등록번호는 공개 데이터셋 생성 시 필요에 따라 해시(SHA-256) 가명화 처리를 적용합니다.
-- **라이선스 및 재배포 준수**: 각 원천 데이터의 이용조건은 공공데이터포털 및 나라장터의 해당 서비스 페이지에 표시된 공공누리(KOGL) 등 개별 이용허락범위를 따릅니다. Kaggle 재배포 전 데이터 소스별 이용조건을 다시 확인합니다.
+- **개인정보 및 식별자 보호**: Kaggle v1 공개본은 전용 비밀키 기반 HMAC-SHA256 `supplier_id`만 사용하며 원문/마스킹 사업자등록번호와 공급업체 상호명을 모두 제외합니다.
+- **라이선스 및 재배포 준수**: 2026-09-11 공공데이터포털의 표준서비스 페이지를 재확인했으며 현재 이용허락범위는 `제한 없음`입니다. 별도 포털 export를 향후 포함할 경우 해당 소스는 별도 재검증합니다.
 
 ---
 
@@ -406,9 +409,10 @@ koneps-procurement-intelligence/
 | **실 API 인증 및 1일 스모크 테스트** | 검증 완료 | 2026-09-01 기준 bids, awards, contracts 전 피드 1일 라이브 수집 및 Parquet 변환 검증 완료. |
 | **1개월 벤치마크 수집 및 파일럿 검증** | 검증 완료 | 2026-08-01 ~ 2026-08-31 전 피드(2,268,948건 원천 수집, 2,256,788건 Parquet 변환) 및 무결성 감사 완료 ([PILOT_2026_08.md](docs/PILOT_2026_08.md) 참조). |
 | **파일럿 감사 보정 및 관계형 조인 모델** | 검증 완료 | 기간 오염 제거, 무손실 투찰 그레인 확정, [RELATIONAL_MODEL.md](docs/RELATIONAL_MODEL.md) 규격화 완료. |
-| **관계형 큐레이티드 테이블 구현 (August Pilot)** | 다음 마일스톤 | 8월 파일럿 기반 `tenders`, `bidder_submissions`, `award_outcomes`, `contracts`, `bridge` 물리 테이블 생성. |
-| **과거 1년 치 라이브 수집** | 계획됨 | 관계형 모델 검증 후 대용량 수집 수행 예정. |
-| **캐글 연구 데이터셋 v1 배포** | 계획됨 | 데이터 카드 및 베이스라인 탐색적 데이터 분석(EDA) 노트북 공개 예정. |
+| **관계형 큐레이티드 테이블** | 검증 완료 | 8월 파일럿 및 2025-09~2026-08 전 12개월에 대해 7개 관계형 테이블, 월별 reconciliation/privacy gate 통과. |
+| **과거 1년 치 라이브 수집** | 검증 완료 | 41,225,145 canonical raw rows 수집, 38,273,402 normalized fact rows 감사 완료. |
+| **Kaggle v1 로컬 공개본** | 패키징 완료 | 7개 ZSTD Parquet, 2,612,589,280 bytes, supplier company identity 최소화 및 SHA-256 receipt 완료. |
+| **Kaggle v1 실제 배포** | 인증 대기 | 로컬 Kaggle 사용자 인증 설정 후 dataset metadata/create, Data Explorer readback 및 스타터 EDA 실행 검증 필요. |
 
 ---
 
@@ -417,7 +421,7 @@ koneps-procurement-intelligence/
 1. ~~**실제 API 1일 스모크 테스트 수행**~~: 완료 (2026-09-01 기준 3개 피드 전수 통과).
 2. ~~**1개월 벤치마크 데이터셋 수집 및 감사**~~: 완료 (2026-08 기준 226만 건 수집 및 [PILOT_2026_08.md](docs/PILOT_2026_08.md) 보고서 발행).
 3. ~~**파일럿 감사 보정 및 관계형 조인 모델 수립**~~: 완료 ([RELATIONAL_MODEL.md](docs/RELATIONAL_MODEL.md) 확정).
-4. **관계형 큐레이티드 테이블 구현 (August Pilot)**: 8월 실데이터 대상 엔터티 테이블 및 브릿지 생성.
-5. **1년 MVP 수집 및 포털 투찰보고서 연계**: 과거 1년 치 대용량 수집 및 참가 기업 상세 투찰 내역 수집.
-6. **마스터 데이터셋 구축**: 누수 없는 머신러닝 피처 엔지니어링 파이프라인 완성.
-7. **Kaggle 연구 데이터셋 v1 공개**: 국제 데이터 사이언스 커뮤니티를 위한 데이터 카드, 영문 가이드 및 스타터 노트북 제공.
+4. ~~**관계형 큐레이티드 테이블 구현**~~: 12개월 전체 월별 재시작 가능한 큐레이션 및 검증 완료.
+5. ~~**1년 MVP 수집·감사·Kaggle payload 패키징**~~: 2025-09~2026-08 공개본 및 bilingual release report 생성 완료.
+6. **Kaggle 연구 데이터셋 v1 공개**: Kaggle 사용자 인증 후 실제 dataset 생성, 파일/컬럼 metadata readback 및 스타터 EDA 실행 확인.
+7. **누수 없는 ML feature layer 구축**: 시점 이전 정보만 사용한 supplier/agency/market history features 생성.

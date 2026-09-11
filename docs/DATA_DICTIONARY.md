@@ -151,26 +151,26 @@
 
 ---
 
-## 6. 관계형 큐레이티드 테이블 (`CURATED_SCHEMA_VERSION = "1.0.0"`)
+## 6. 관계형 큐레이티드 / 공개 테이블 (`CURATED_SCHEMA_VERSION = "1.1.0"`)
 
-정규화 Parquet 피드로부터 생성되는 7개의 정규화 관계형 테이블(`data/processed/curated/YYYY_MM/`)의 표준 컬럼 구조입니다.
+아래 행 수는 **2025-09-01 ~ 2026-08-31 Kaggle 공개본** 기준입니다. 월별 내부 큐레이션은 재시작 가능한 검증 단위이며, 최종 공개본은 `scripts/build_kaggle_release.py`가 7개 ZSTD Parquet으로 병합합니다. 공급업체 상호명과 사업자등록번호는 공개본에서 제외됩니다.
 
 ### 6.1 `01_tenders.parquet` (입찰공고 마스터)
 - **물리 기본 키 (PK)**: `(bid_notice_no, bid_notice_round)`
-- **행 수**: 32,895행 (8월 기준, 100% 고유)
+- **행 수**: 470,937행
 - **주요 컬럼**: `bid_notice_no`, `bid_notice_round`, `bid_notice_name_ko`, `notice_agency_code`, `notice_agency_name_ko`, `demand_agency_code`, `demand_agency_name_ko`, `business_div_name_ko`, `contract_method_ko`, `award_method_ko`, `assigned_budget_krw`, `estimated_price_krw`, `bid_notice_date`, `bid_begin_date`, `bid_close_date`, `opening_date`, `is_joint_contract`, `is_electronic_bid`, `is_region_limited`, `is_industry_limited`
 
 ### 6.2 `02_bidder_submissions.parquet` (개별 기업 투찰 기록)
 - **물리 기본 키 (PK)**: `bid_submission_id` (`BID_<32 hex>`, SHA-256 대리 키, 100% 고유)
 - **비즈니스 대조 그레인**: `(bid_notice_no, bid_notice_round, bidder_supplier_id, opening_rank, disqualification_reason_ko, bid_amount_krw, bid_submission_time)` (7-컬럼 무손실 그레인)
-- **행 수**: 2,107,948행 (8월 기준)
+- **행 수**: 35,907,867행
 - **주요 컬럼**:
   - `bid_submission_id`: 문자열 (PK, `BID_` 접두어)
   - `bid_notice_no`, `bid_notice_round`: 연계 공고 키 (FK)
   - `bidder_supplier_id`: 가명화 기업 키 (FK, `SUP_` 접두어)
   - `tender_in_scope`: 당월 큐레이티드 공고 연계 여부 (`boolean`)
   - `bid_amount_krw`: 투찰금액 (`float64`)
-  - `bid_rate_pct`: 투찰률 (`float64`, %)
+  - `bid_rate`: 투찰률 (`float64`, %)
   - `opening_rank`: 개찰순위 (`float64`)
   - `is_selected_winner`: 낙찰자 선정 여부 (`boolean`)
   - `disqualification_reason_ko`: 탈락사유 (`string`)
@@ -179,14 +179,14 @@
 ### 6.3 `03_award_outcomes.parquet` (최종 낙찰 결과)
 - **물리 기본 키 (PK)**: `award_outcome_id` (`AWD_<32 hex>`, SHA-256 대리 키, 100% 고유)
 - **비즈니스 대조 그레인**: `(bid_notice_no, bid_notice_round, winner_supplier_id, award_amount_krw, bid_submission_time)`
-- **행 수**: 17,315행 (선정 낙찰자 전수)
-- **낙찰금액 결측치 정책**: 24건(0.14%) `award_amount_krw` 결측치는 적격심사 등 개찰 직후 미확정 상태로 `DO NOT IMPUTE` 정책에 따라 `NULL` 보존.
+- **행 수**: 305,995행 (선정 낙찰자 전수)
+- **낙찰금액 결측치 정책**: `award_amount_krw` NULL 280건은 원천 API snapshot 그대로 보존합니다. 결측 원인을 데이터 부재만으로 추정하지 않으며 `DO NOT IMPUTE` 정책을 적용합니다.
 - **주요 컬럼**:
   - `award_outcome_id`: 문자열 (PK, `AWD_` 접두어)
   - `bid_notice_no`, `bid_notice_round`: 연계 공고 키 (FK)
   - `winner_supplier_id`: 낙찰 기업 키 (FK, `SUP_` 접두어)
   - `tender_in_scope`: 당월 큐레이티드 공고 연계 여부 (`boolean`)
-  - `award_amount_krw`: 최종 낙찰금액 (`float64`, 24건 Nullable)
+  - `award_amount_krw`: 최종 낙찰금액 (`float64`, Nullable)
   - `award_rate`: 낙찰률 (`float64`, %)
   - `award_date`: 낙찰결정일자 (`string`)
   - `scheduled_price_krw`: 예정가격 (`float64`)
@@ -195,37 +195,39 @@
 
 ### 6.4 `04_contracts.parquet` (정부 계약 마스터)
 - **물리 기본 키 (PK)**: `unified_contract_no` (`untyCntrctNo`, 100% 고유)
-- **행 수**: 115,945행
-- **주요 컬럼**: `unified_contract_no`, `contract_no`, `contract_round`, `contract_title_ko`, `contract_date`, `contract_method_ko`, `total_contract_amount_krw`, `contract_amount_krw`, `contract_agency_code`, `contract_agency_name_ko`, `demand_agency_code`, `demand_agency_name_ko`, `contractor_supplier_id` (FK), `contractor_name_ko`, `bid_notice_no`, `bid_notice_round`, `contract_period`, `is_joint_contract`
+- **행 수**: 1,894,598행
+- **주요 컬럼**: `unified_contract_no`, `contract_no`, `contract_round`, `contract_title_ko`, `contract_date`, `contract_method_ko`, `total_contract_amount_krw`, `contract_amount_krw`, `contract_agency_code`, `contract_agency_name_ko`, `demand_agency_code`, `demand_agency_name_ko`, `contractor_supplier_id` (FK), `bid_notice_no`, `bid_notice_round`, `contract_period`, `is_joint_contract`
+- **금액 이상치 정책**: 원천 JSON에서 확인된 음수 계약금액은 감액/원천 이상치 가능성을 보존하기 위해 삭제하거나 0으로 치환하지 않습니다.
 
 ### 6.5 `05_suppliers.parquet` (공급업체 차원)
 - **물리 기본 키 (PK)**: `supplier_id` (`SUP_<32 hex>`, HMAC-SHA256 해시 키)
-- **행 수**: 143,842개사 (투찰사, 낙찰사, 계약체결사 전수 통합)
-- **프라이버시 보존**: 원천 사업자번호 완전 제거, 마스킹 번호(`masked_biz_no`: `123-45-*****`) 제공.
+- **행 수**: 261,474개 가명화 supplier ID (투찰사, 낙찰사, 계약체결사 전수 통합)
+- **프라이버시 보존**: 원천 사업자번호, 마스킹 사업자번호, 공급업체 상호명 모두 공개본에서 제외합니다. `supplier_id`는 전용 비밀키 기반 HMAC-SHA256 식별자입니다.
 - **주요 컬럼**:
   - `supplier_id`: 가명화 기업 식별자 (PK)
-  - `supplier_name_ko`: 기업 상호명 (`string`)
-  - `masked_biz_no`: 마스킹된 사업자등록번호 (`123-45-*****`)
   - `is_bidder`, `is_winner`, `is_contractor`: 기업 역할 플래그 (`boolean`)
-  - `total_bids_in_scope`, `total_wins_in_scope`, `total_contracts_in_scope`: 당월 활동 실적 (`int64`)
-  - `total_contract_amount_krw`: 당월 계약체결 총액 (`float64`)
+  - `snapshot_total_bids_in_scope`, `snapshot_total_wins_in_scope`, `snapshot_total_contracts_in_scope`: 12개월 공개 범위 활동 실적 (`int64`)
+  - `snapshot_total_contract_amount_krw`: 12개월 공개 범위 계약 총액 (`float64`)
+- **ML 주의**: `snapshot_total_*`은 전체 공개기간 집계값이므로 과거 시점 예측의 leak-free feature로 직접 사용하면 안 됩니다.
 
 ### 6.6 `06_agencies.parquet` (발주 및 수요기관 차원)
 - **물리 기본 키 (PK)**: `agency_code` (7자리 공공기관 표준코드)
-- **행 수**: 14,091개 기관
+- **행 수**: 27,214개 기관
 - **주요 컬럼**:
   - `agency_code`: 표준 기관코드 (PK)
   - `agency_name_ko`: 공식 기관명 (`string`)
   - `is_notice_agency`, `is_demand_agency`, `is_contract_agency`: 기관 역할 플래그 (`boolean`)
-  - `total_tenders_in_scope`, `total_contracts_in_scope`: 당월 조달 활동 건수 (`int64`)
+  - `snapshot_total_tenders_in_scope`, `snapshot_total_contracts_in_scope`: 12개월 공개 범위 조달 활동 건수 (`int64`)
 
 ### 6.7 `07_tender_contract_bridge.parquet` (공고-계약 연결 브릿지)
 - **물리 기본 키 (PK)**: `unified_contract_no`
-- **행 수**: 40,677행 (공고 연계 계약 100% 수록, 미연계 계약 75,268건은 제외)
+- **행 수**: 637,107행 (입찰공고 번호가 있는 계약의 공고-계약 연결)
 - **주요 컬럼**:
   - `unified_contract_no`: 계약 식별자 (PK, FK $\rightarrow$ `contracts`)
   - `bid_notice_no`, `bid_notice_round`: 입찰공고 키 (FK $\rightarrow$ `tenders`)
   - `tender_in_scope`: 당월 큐레이티드 공고 연계 여부 (`boolean`)
   - `contract_amount_krw`: 계약금액 (`float64`)
   - `contract_date`: 계약일자 (`string`)
-  - `contractor_supplier_id`: 계약기업 키 (FK $\rightarrow$ `suppliers`)
+  - `match_type`: 공고-계약 연결 방식 (`string`)
+
+공개본의 상세 검증 결과와 파일별 SHA-256은 [HISTORICAL_RELEASE_2025_09_2026_08.md](HISTORICAL_RELEASE_2025_09_2026_08.md) 및 `docs/metrics/release_202509_202608.json`을 참조하십시오.

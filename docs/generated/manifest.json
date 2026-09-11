@@ -11,23 +11,23 @@
   },
   "DATA_SOURCES.ko.docx": {
     "source": "docs/DATA_SOURCES.md",
-    "source_sha256": "40f8317a5319080095cea24a4a88392882fe0e4d7ebe407e20cea787a0acbbb3",
-    "docx_size_bytes": 39275
+    "source_sha256": "1a3705ce7ec9fc2374dbcdf87b4fa0fee8f7dc9f48e77e8d03f3bff8d6185e68",
+    "docx_size_bytes": 39438
   },
   "DATA_SOURCES.en.docx": {
     "source": "docs/DATA_SOURCES.en.md",
-    "source_sha256": "984b64a26e398f4e383f75367493f8e6ea9b273d3a2b61c8372cc1dbe9962de3",
-    "docx_size_bytes": 38931
+    "source_sha256": "3f55416a00aa812b8a5ba72e4b158e5bda5b9a2eb736d2537ecc53041f79945a",
+    "docx_size_bytes": 39092
   },
   "DATA_DICTIONARY.ko.docx": {
     "source": "docs/DATA_DICTIONARY.md",
-    "source_sha256": "23b8c60f6dcd6ec03d0b38e8f82aeaba0f82bd2bbb8c603ffe797579a0eb38e0",
-    "docx_size_bytes": 42239
+    "source_sha256": "89e78fff2a531c002d034d488b89d1bb891dbed24aa7a94dee12234377fae448",
+    "docx_size_bytes": 42614
   },
   "DATA_DICTIONARY.en.docx": {
     "source": "docs/DATA_DICTIONARY.en.md",
-    "source_sha256": "1fb1f419df05b571623156b71f54a218fea89c5c98969bec7258dc418199d6b2",
-    "docx_size_bytes": 41986
+    "source_sha256": "013fecf78e9394f28b23b7a76056991baa51b3d6c307fbee93613544db145582",
+    "docx_size_bytes": 42332
   },
   "LIVE_VALIDATION.ko.docx": {
     "source": "docs/LIVE_VALIDATION.md",

@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.1.0",
+  "generated_at": "2026-09-11T01:31:11.649694+00:00",
+  "scope_start": "2025-09-01",
+  "scope_end": "2026-08-31",
+  "source_months": 12,
+  "release_layout": "seven_relational_parquet_files",
+  "privacy_policy": {
+    "supplier_public_identity": "supplier_id_only",
+    "raw_business_registration_numbers_excluded": true,
+    "masked_business_registration_numbers_excluded": true,
+    "supplier_company_names_excluded": true
+  },
+  "schema_normalization": {
+    "contract_amount_krw": "float64",
+    "total_contract_amount_krw": "float64",
+    "reason": "stable cross-month representation; source values preserved"
+  },
+  "relationship_normalization": {
+    "tender_in_scope": "recomputed against the full 12-month public tender key set"
+  },
+  "validation": {
+    "historical_monthly_gates_passed": true,
+    "fact_row_reconciliation_passed": true,
+    "forbidden_column_gate_passed": true,
+    "company_name_minimization_passed": true,
+    "passed": true
+  },
+  "files": {
+    "01_tenders.parquet": {
+      "file": "01_tenders.parquet",
+      "rows": 470937,
+      "columns": 32,
+      "bytes": 29781660,
+      "sha256": "49eeb8da7239ba293133502064fd9f6975a90f16fbc6c60178c4c9a46b9bcb18"
+    },
+    "02_bidder_submissions.parquet": {
+      "file": "02_bidder_submissions.parquet",
+      "rows": 35907867,
+      "columns": 28,
+      "bytes": 2396046821,
+      "sha256": "c4ed701f5146d3f065058f424bb542510ecc559afedbbe49da5aa561a999217c"
+    },
+    "03_award_outcomes.parquet": {
+      "file": "03_award_outcomes.parquet",
+      "rows": 305995,
+      "columns": 25,
+      "bytes": 34718596,
+      "sha256": "21efb840ac7b1102ec39fb5af35e600c7c929a8b6a632dd86fe002340f178fe9"
+    },
+    "04_contracts.parquet": {
+      "file": "04_contracts.parquet",
+      "rows": 1894598,
+      "columns": 24,
+      "bytes": 134436150,
+      "sha256": "66810f604d2cfc4427466b0f80150a86dc526b62b87abb294935e0beb4b5e25e"
+    },
+    "07_tender_contract_bridge.parquet": {
+      "file": "07_tender_contract_bridge.parquet",
+      "rows": 637107,
+      "columns": 7,
+      "bytes": 10923863,
+      "sha256": "f37861a76e803af3a03f199ef93d7e5056233fe69f0e5dcdfb408378fd0d87f8"
+    },
+    "05_suppliers.parquet": {
+      "file": "05_suppliers.parquet",
+      "rows": 261474,
+      "columns": 8,
+      "bytes": 6218548,
+      "sha256": "9ad4af6745f9e256350b637aa3d3419541c61b732ad022a98e9112abb2ba29db"
+    },
+    "06_agencies.parquet": {
+      "file": "06_agencies.parquet",
+      "rows": 27214,
+      "columns": 7,
+      "bytes": 463642,
+      "sha256": "6044b7a48104dc82c37892e4dbf801947d812849878d7900e7a50cc579cb3f34"
+    }
+  },
+  "total_release_bytes": 2612589280
+}

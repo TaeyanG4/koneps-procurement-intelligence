@@ -48,12 +48,13 @@ In addition to standard API feeds, detailed bidder-level competition records can
 ## 3. Data Governance & Licensing
 
 ### Source Data Licensing
-- Public data distributed through `data.go.kr` and KONEPS is published under South Korea's **Act on Promotion of the Provision and Use of Public Data (공공데이터의 제공 및 이용 활성화에 관한 법률)** and the **Korea Open Government License (공공누리 / KOGL)**.
-- Specific datasets are subject to their individual terms of provision indicated on each service page. Terms will be re-verified prior to public redistribution.
+- Public data distributed through `data.go.kr` and KONEPS is governed by South Korea's **Act on Promotion of the Provision and Use of Public Data (공공데이터의 제공 및 이용 활성화에 관한 법률)** and the individual permission terms displayed on each service page. The project does not invent a Creative Commons or KOGL subtype when the source page does not state one.
+- **Re-verified 2026-09-11**: the `KONEPS Public Data Open Standard Service` page (last edited 2026-06-29) lists the service as free and its **scope of license as unrestricted**. Source: `https://www.data.go.kr/en/data/15023678/standard.do`
 - **Code vs. Data Separation**: Source code is versioned in GitHub; collected procurement datasets are excluded (`.gitignore`) and distributed independently via Kaggle Datasets.
 
 ### Responsible Publication Checkpoints
-1. **Source-by-Source License Re-Verification**: Prior to public Kaggle release, verify the exact terms of use and attribution requirements for each specific `data.go.kr` service endpoint (`getDataSetOpnStdBidPblancInfo`, `getDataSetOpnStdScsbidInfo`, `getDataSetOpnStdCntrctInfo`) and KONEPS portal export.
-2. **Business Registration Numbers**: Korean business registration numbers (`사업자등록번호`) identify commercial entities. Public releases will provide a stable pseudonymized hash (`supplier_id`) and masked string (`123-45-*****`).
-3. **Personal Data Protection**: Personal identification numbers (e.g. resident registration numbers) are strictly excluded by public APIs.
-4. **No Credential Exposure**: API keys, service tokens, and `.env` files are strictly excluded from source control.
+1. **Source-by-Source License Re-Verification**: The standard API service was re-verified on 2026-09-11. If a separate KONEPS portal export is ever included in the public payload, its terms will be verified independently before publication.
+2. **Business Registration Number Pseudonymization and Minimization**: The public release uses only a dedicated-secret HMAC-SHA256 `supplier_id`. Raw and masked business registration numbers are both excluded.
+3. **Supplier Name Minimization**: The v1 Kaggle payload also excludes bidder, winner, contractor, and supplier-dimension company names. Public agency names remain for institutional analysis and joins.
+4. **Personal Data Protection**: Personal identification information is not included in the public release.
+5. **No Credential Exposure**: API keys, HMAC secrets, service tokens, and `.env` files are strictly excluded from source control.

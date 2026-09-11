@@ -41,7 +41,13 @@ This document tracks the implementation progress and development milestones for 
 - [x] August-only cross-feed cardinality validated (Tender 1:N Bidder Submissions, 1:0..N Award Outcomes, 1:0..N Contracts, 100% unique `untyCntrctNo`)
 - [x] Relational model specification created (`docs/RELATIONAL_MODEL.md` & `docs/RELATIONAL_MODEL.en.md`)
 - [x] Relational curated tables implemented on August pilot (`tenders`, `bidder_submissions`, `award_outcomes`, `contracts`, `suppliers`, `agencies`, `bridge`) — 7 tables, 115.67 MiB, all reconciliation gates passed
-- [ ] 1-year historical MVP collected
+- [x] 1-year historical MVP collected (2025-09-01 ~ 2026-08-31: 41,225,145 canonical raw rows)
+- [x] Historical normalized build audited (38,273,402 fact rows, 1,088 Parquet files, all integrity gates passed)
+- [x] Restartable month-by-month relational curation completed (12/12 months passed)
+- [x] Privacy-minimized Kaggle release payload built (7 ZSTD Parquet files, 2,612,589,280 bytes; supplier identity is HMAC `supplier_id` only)
+- [x] Source service license re-verified on 2026-09-11 (data.go.kr service page: scope of license unrestricted)
 - [ ] Official bidder outcome report export ingested into `data/processed/bidder_outcomes/` (optional enrichment role)
 - [ ] Leak-free ML feature tables generated (competition metrics, win rate history, agency price variance)
-- [ ] Curated research dataset v1 packaged, documented, and published with baseline EDA notebook
+- [x] Curated research dataset v1 packaged and documented locally (`data/processed/kaggle_release_202509_202608/`)
+- [ ] Kaggle dataset v1 published and live metadata/Data Explorer verified (blocked locally until Kaggle user authentication is configured)
+- [ ] Baseline EDA starter notebook published and executed successfully

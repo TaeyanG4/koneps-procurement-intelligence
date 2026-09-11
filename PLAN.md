@@ -24,9 +24,9 @@ Why recent 12 months first:
 - verify join cardinality
 - create first EDA/ML notebooks quickly
 
-*Status*: 1-month pilot benchmark (2026-08) completed and audited (2.26M raw rows, 2.25M Parquet rows). Empirical volumes, lossless deduplication grain, and relational join specification (`docs/RELATIONAL_MODEL.md`) finalized.
+*Status*: **Completed for the initial 12-month MVP (2025-09-01 ~ 2026-08-31).** The collection contains 41,225,145 canonical raw rows and 38,273,402 normalized fact rows. All 12 monthly relational builds passed reconciliation and privacy gates; the public 7-file Kaggle payload is 2.61 GB. See `docs/HISTORICAL_RELEASE_2025_09_2026_08.md`.
 
-## Phase 2 — Join design & Relational Implementation (Next Milestone: Implement relational curated tables on August pilot)
+## Phase 2 — Join design & Relational Implementation (Completed)
 
 Candidate grain:
 
@@ -39,22 +39,19 @@ Never join before checking 1:1 vs 1:N cardinality. A tender can have many bidder
 ## Phase 3 — Curated target tables
 
 
-Target publication structure:
+Implemented v1 publication structure:
 
 ```text
-raw-ish standardized tables
-  bids/
-  awards/
-  contracts/
-  bidder_outcomes.parquet
-
-curated tables (after schema validation)
-  procurement_master.parquet
-  bidder_competition.parquet
-  supplier_features.parquet
-  agency_features.parquet
-  market_features.parquet
+01_tenders.parquet
+02_bidder_submissions.parquet
+03_award_outcomes.parquet
+04_contracts.parquet
+05_suppliers.parquet
+06_agencies.parquet
+07_tender_contract_bridge.parquet
 ```
+
+The seven files are intentionally distinct relational grains rather than duplicated serializations. The public supplier dimension exposes only stable HMAC `supplier_id`; raw/masked business registration numbers and supplier company names are excluded from the Kaggle payload.
 
 ## Phase 4 — Features
 
@@ -105,12 +102,14 @@ Minimum launch package:
 - one supplier/market-structure notebook
 - scheduled incremental update
 
+*Current status*: the local v1 data payload, release receipt, privacy gates, and bilingual historical release report are complete. Actual Kaggle publication is pending user-managed Kaggle authentication, final `dataset-metadata.json` owner/slug generation, and a successfully executed starter notebook.
+
 ## Privacy / responsible publication checkpoint
 
 The official bidder report contains company names and business registration numbers. Before Kaggle publication:
 
-- verify current source license and Kaggle policy
+- verify current source license and Kaggle policy (API service re-verified 2026-09-11: data.go.kr reports scope of license as unrestricted)
 - assess whether raw registration numbers add meaningful analytical value
-- prefer a stable hashed supplier ID in the public modeling table when the raw identifier is unnecessary
+- use a stable HMAC-SHA256 supplier ID in public tables; raw and masked registration numbers are excluded
+- exclude supplier company names from the v1 Kaggle payload as an additional data-minimization measure
 - keep provenance and transformation documentation
-

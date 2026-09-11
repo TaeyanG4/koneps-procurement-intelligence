@@ -349,21 +349,24 @@ For exhaustive data types, Korean source field names, and nullability constraint
 
 ## 14. Kaggle Dataset Packaging Guide
 
-1. **Dataset Structure**:
-   - Provide clean Star/Snowflake tables: `bids.parquet`, `awards.parquet`, `contracts.parquet`, `bidder_outcomes.parquet`.
-   - Large tables packaged with Hive date partitions or Zstandard-compressed Parquet files.
-2. **Kaggle Metadata (`dataset-metadata.json`)**:
-   ```json
-   {
-     "title": "South Korea Public Procurement Intelligence — KONEPS",
-     "id": "your-kaggle-username/south-korea-public-procurement-intelligence-koneps",
-     "licenses": [{"name": "CC-BY-4.0"}]
-   }
-   ```
-3. **Publishing via Kaggle CLI**:
-   ```bash
-   kaggle datasets create -p data/processed/ --public
-   ```
+The local Kaggle v1 payload for 2025-09-01 through 2026-08-31 is complete.
+
+| File | Rows | Role |
+| :--- | ---: | :--- |
+| `01_tenders.parquet` | 470,937 | tender master |
+| `02_bidder_submissions.parquet` | 35,907,867 | individual bid submissions |
+| `03_award_outcomes.parquet` | 305,995 | selected award outcomes |
+| `04_contracts.parquet` | 1,894,598 | contract master |
+| `05_suppliers.parquet` | 261,474 | HMAC-pseudonymized supplier dimension |
+| `06_agencies.parquet` | 27,214 | public agency dimension |
+| `07_tender_contract_bridge.parquet` | 637,107 | tender-contract relationship bridge |
+
+```bash
+python scripts/build_historical_curated.py --start 2025-09-01 --end 2026-08-31 --processed data/processed/historical_202509_202608
+python scripts/build_kaggle_release.py --start 2025-09-01 --end 2026-08-31
+```
+
+The final payload is written to `data/processed/kaggle_release_202509_202608/` and is about 2.61 GB. See [HISTORICAL_RELEASE_2025_09_2026_08.en.md](docs/HISTORICAL_RELEASE_2025_09_2026_08.en.md) for full validation details. Kaggle metadata uses `other` rather than inventing a Creative Commons license, faithfully reflecting the source service's current unrestricted scope of license.
 
 ---
 
@@ -383,8 +386,8 @@ For exhaustive data types, Korean source field names, and nullability constraint
 
 - **No Secrets in Git**: Service keys are never committed and must be provided via local `.env`.
 - **Code Only in GitHub**: Collected procurement datasets are excluded from Git (`.gitignore`) and distributed via Kaggle Datasets.
-- **Privacy & Identifier Protection**: Before public Kaggle publication, company representative names and business registration numbers can be pseudonymized with SHA-256 hashing if required.
-- **Data Provenance & License Verification**: Specific terms of use follow the permissions indicated on data.go.kr and KONEPS per service endpoint. All source licenses will be explicitly re-verified prior to public Kaggle release.
+- **Privacy & Identifier Protection**: The Kaggle v1 payload uses only a dedicated-secret HMAC-SHA256 `supplier_id`; raw/masked business registration numbers and supplier company names are excluded.
+- **Data Provenance & License Verification**: The standard service page was re-verified on 2026-09-11 and currently lists its scope of license as unrestricted. Any separate KONEPS portal export added later will be verified independently.
 
 ---
 
@@ -401,9 +404,10 @@ For exhaustive data types, Korean source field names, and nullability constraint
 | **Live API Authentication & 1-Day Smoke Test** | VERIFIED | Completed 1-day live collection and Parquet normalization for 2026-09-01 across bids, awards, and contracts. |
 | **1-Month Benchmark & Pilot Validation** | VERIFIED | Completed August 2026 pilot across all feeds (2,268,948 raw rows, 2,256,788 Parquet rows) with zero data corruption (see [PILOT_2026_08.md](docs/PILOT_2026_08.md)). |
 | **Pilot Audit Correction & Relational Model** | VERIFIED | Scoped event-date filtering, lossless deduplication grain, and [RELATIONAL_MODEL.md](docs/RELATIONAL_MODEL.md) specification completed. |
-| **Relational Curated Tables Implementation (August Pilot)** | NEXT MILESTONE | Physical creation of `tenders`, `bidder_submissions`, `award_outcomes`, `contracts`, and `bridge` tables. |
-| **Historical 1-Year Live Crawl** | PLANNED | Scale historical collection after relational validation. |
-| **Kaggle Dataset v1 Target** | PLANNED | Curated public dataset release and baseline exploratory analysis notebook. |
+| **Relational Curated Tables** | VERIFIED | Seven relational tables validated on the August pilot and all 12 months from 2025-09 through 2026-08 with monthly reconciliation/privacy gates. |
+| **Historical 1-Year Live Crawl** | VERIFIED | 41,225,145 canonical raw rows collected and 38,273,402 normalized fact rows audited. |
+| **Local Kaggle v1 Payload** | PACKAGED | Seven ZSTD Parquet files, 2,612,589,280 bytes, privacy-minimized supplier identity, per-file SHA-256 receipts. |
+| **Live Kaggle v1 Publication** | AUTH PENDING | Requires user-managed Kaggle authentication, dataset metadata/create, Data Explorer readback, and successful starter EDA execution. |
 
 ---
 
@@ -412,7 +416,7 @@ For exhaustive data types, Korean source field names, and nullability constraint
 1. ~~**Perform 1-Day Live Smoke Test**~~: Completed (verified across all 3 feeds for 2026-09-01).
 2. ~~**Collect 1-Month Benchmark & Audit**~~: Completed (August 2026 crawl with 2.26M rows and detailed audit report in [PILOT_2026_08.md](docs/PILOT_2026_08.md)).
 3. ~~**Correct Pilot Audit & Formulate Relational Model**~~: Completed (lossless grain verified, [RELATIONAL_MODEL.md](docs/RELATIONAL_MODEL.md) published).
-4. **Implement Relational Curated Tables (August Pilot)**: Materialize normalized relational tables and bridge structure.
-5. **Historical 1-Year MVP Collection & Bidder Reports**: Scale up historical crawling and link detailed bidder participation data.
-6. **Construct Relational Master Dataset**: Eliminate duplicate joining hazards and generate leak-free tabular feature sets.
-7. **Publish Kaggle Research Dataset v1**: Release curated Parquet datasets, comprehensive data card, and starter EDA notebook.
+4. ~~**Implement Relational Curated Tables**~~: Completed as restartable monthly curation across the full 12-month scope.
+5. ~~**Collect, audit, and package the 1-Year MVP**~~: Completed for 2025-09 through 2026-08 with bilingual release validation documentation.
+6. **Publish Kaggle Research Dataset v1**: Configure Kaggle user authentication, create the dataset, verify file/column metadata readback, and execute the starter EDA notebook.
+7. **Build the leak-free ML feature layer**: Generate supplier, agency, and market history features using only information available before each observation time.

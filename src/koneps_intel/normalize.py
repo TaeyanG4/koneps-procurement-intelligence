@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
+from koneps_intel.endpoints import BUSINESS_DIVISIONS, FEEDS
+from koneps_intel.parsers import feed_windows, parse_date
 from koneps_intel.schemas import (
     AWARDS_API_ALIASES,
     BIDDER_REPORT_ALIASES,
@@ -23,6 +25,63 @@ FEED_ALIASES: Dict[str, Dict[str, str]] = {
     "awards": AWARDS_API_ALIASES,
     "contracts": CONTRACTS_API_ALIASES,
 }
+
+
+def select_raw_files(
+    raw_root: Path,
+    feed: str,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+) -> List[Path]:
+    """Select raw files, optionally restricted to the collector's canonical window plan.
+
+    A scoped build must use the exact window boundaries that the collector would
+    generate for ``start``/``end``. This prevents older pilot windows with
+    different boundaries from being mixed into a historical rebuild and creating
+    cross-window duplicates.
+    """
+    if (start is None) != (end is None):
+        raise ValueError("start and end must be provided together")
+
+    if start is None and end is None:
+        return sorted((raw_root / feed).glob("*.jsonl.gz"))
+
+    if feed not in FEEDS:
+        raise ValueError(f"Unknown feed: {feed}")
+
+    start_date = parse_date(start)
+    end_date = parse_date(end)
+    if start_date > end_date:
+        raise ValueError("start must be on or before end")
+
+    spec = FEEDS[feed]
+    codes = list(BUSINESS_DIVISIONS.keys()) if spec.needs_business_division else [None]
+    selected: List[Path] = []
+    missing: List[Path] = []
+
+    for win_start, win_end in feed_windows(spec, start_date, end_date):
+        for code in codes:
+            label = BUSINESS_DIVISIONS.get(code, code) if code else "all"
+            path = RawStorage.get_window_path(
+                raw_root,
+                feed,
+                label,
+                win_start.strftime("%Y%m%d"),
+                win_end.strftime("%Y%m%d"),
+            )
+            if path.exists():
+                selected.append(path)
+            else:
+                missing.append(path)
+
+    if missing:
+        preview = ", ".join(p.name for p in missing[:5])
+        suffix = "" if len(missing) <= 5 else f" ... (+{len(missing) - 5} more)"
+        raise FileNotFoundError(
+            f"Missing {len(missing)} canonical raw window file(s) for {feed}: {preview}{suffix}"
+        )
+
+    return selected
 
 
 def clean_numeric(series: pd.Series) -> pd.Series:
@@ -143,10 +202,12 @@ def build_feed_parquet(
     feed: str,
     force: bool = False,
     partition_by_date: bool = True,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Convert raw window JSONL archives to typed, partitioned Parquet datasets."""
     logger = get_logger("koneps_intel.normalize")
-    files = sorted((raw_root / feed).glob("*.jsonl.gz"))
+    files = select_raw_files(raw_root, feed, start=start, end=end)
     base_out = processed_root / feed
     base_out.mkdir(parents=True, exist_ok=True)
 

@@ -303,7 +303,10 @@ def main() -> None:
         print(f"  총 수집 행수 : {stats.total_rows:,}")
         print(f"  총 API 호출  : {stats.total_calls:,}")
         print(f"{'='*60}")
-        print("  ✓ 다음 단계: python scripts/normalize.py --start 2025-09-01 --end 2026-08-31")
+        print(
+            "  NEXT: python scripts/build_dataset.py --start 2025-09-01 --end 2026-08-31 "
+            "--processed data/processed/historical_202509_202608"
+        )
         print(f"{'='*60}\n")
 
     except AuthenticationError as e:

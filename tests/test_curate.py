@@ -337,6 +337,31 @@ def test_build_all_curated_tables_integrity(synthetic_raw_feeds):
     assert "CNT-2026-003" not in bridge["unified_contract_no"].values
 
 
+def test_supplier_dimension_excludes_nonnumeric_ten_character_business_ids():
+    awards_df = pd.DataFrame(
+        {
+            "bidder_business_registration_no": ["1234567890", "ABCDEFGHIJ"],
+            "bidder_name_ko": ["Valid Supplier", "Invalid Identifier"],
+            "is_selected_winner": [False, False],
+            "winner_business_registration_no": [None, None],
+            "winner_name_ko": [None, None],
+        }
+    )
+    contracts_df = pd.DataFrame(
+        {
+            "contractor_business_registration_no": pd.Series(dtype=str),
+            "contractor_name_ko": pd.Series(dtype=str),
+            "contract_amount_krw": pd.Series(dtype=float),
+        }
+    )
+
+    suppliers, _ = build_curated_suppliers(awards_df, contracts_df, TEST_HMAC_KEY)
+
+    assert len(suppliers) == 1
+    assert suppliers["supplier_id"].ne("").all()
+    assert suppliers["supplier_name_ko"].tolist() == ["Valid Supplier"]
+
+
 def test_reconciliation_gates_validation(synthetic_raw_feeds):
     raw_bids, raw_awards, raw_contracts = synthetic_raw_feeds
     tender_keys = set(zip(raw_bids["bid_notice_no"], raw_bids["bid_notice_round"]))

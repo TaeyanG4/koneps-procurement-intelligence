@@ -17,7 +17,7 @@ import logging
 import os
 import re
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -174,17 +174,28 @@ def compute_bid_submission_ids(
     amt_col = df["bid_amount_krw"] if "bid_amount_krw" in df.columns else pd.Series([None] * len(df), index=df.index)
     time_col = df["bid_submission_time"] if "bid_submission_time" in df.columns else pd.Series([None] * len(df), index=df.index)
 
-    for i in range(len(df)):
+    # Iterating arrays directly avoids millions of pandas ``iloc`` calls while
+    # preserving the exact canonical-json/SHA-256 identifier contract.
+    rows = zip(
+        df["bid_notice_no"].array,
+        df["bid_notice_round"].array,
+        bidder_supplier_ids.array,
+        rank_col.array,
+        disq_col.array,
+        amt_col.array,
+        time_col.array,
+    )
+    for ntce_no, ntce_ord, supplier_id, rank, disq, amount, submission_time in rows:
         record = {
             "entity": "bid_submission",
             "version": 1,
-            "bid_notice_no": _str_or_null(df["bid_notice_no"].iloc[i]),
-            "bid_notice_round": _str_or_null(df["bid_notice_round"].iloc[i]),
-            "bidder_supplier_id": _str_or_null(bidder_supplier_ids.iloc[i]),
-            "opening_rank": _num_or_null_scalar(rank_col.iloc[i], "%.0f"),
-            "disqualification_reason": _str_or_null(disq_col.iloc[i]),
-            "bid_amount_krw": _num_or_null_scalar(amt_col.iloc[i], "%.2f"),
-            "bid_submission_time": _str_or_null(time_col.iloc[i]),
+            "bid_notice_no": _str_or_null(ntce_no),
+            "bid_notice_round": _str_or_null(ntce_ord),
+            "bidder_supplier_id": _str_or_null(supplier_id),
+            "opening_rank": _num_or_null_scalar(rank, "%.0f"),
+            "disqualification_reason": _str_or_null(disq),
+            "bid_amount_krw": _num_or_null_scalar(amount, "%.2f"),
+            "bid_submission_time": _str_or_null(submission_time),
         }
         ids.append("BID_" + h(_canonical_json(record)).hexdigest()[:32])
     return pd.Series(ids, index=df.index)
@@ -251,18 +262,41 @@ def compute_award_outcome_ids(
     amt_col = df["award_amount_krw"] if "award_amount_krw" in df.columns else pd.Series([None] * len(df), index=df.index)
     time_col = df["bid_submission_time"] if "bid_submission_time" in df.columns else pd.Series([None] * len(df), index=df.index)
 
-    for i in range(len(df)):
+    rows = zip(
+        df["bid_notice_no"].array,
+        df["bid_notice_round"].array,
+        winner_supplier_ids.array,
+        amt_col.array,
+        time_col.array,
+    )
+    for ntce_no, ntce_ord, supplier_id, amount, submission_time in rows:
         record = {
             "entity": "award_outcome",
             "version": 1,
-            "bid_notice_no": _str_or_null(df["bid_notice_no"].iloc[i]),
-            "bid_notice_round": _str_or_null(df["bid_notice_round"].iloc[i]),
-            "winner_supplier_id": _str_or_null(winner_supplier_ids.iloc[i]),
-            "award_amount_krw": _num_or_null_scalar(amt_col.iloc[i], "%.2f"),
-            "bid_submission_time": _str_or_null(time_col.iloc[i]),
+            "bid_notice_no": _str_or_null(ntce_no),
+            "bid_notice_round": _str_or_null(ntce_ord),
+            "winner_supplier_id": _str_or_null(supplier_id),
+            "award_amount_krw": _num_or_null_scalar(amount, "%.2f"),
+            "bid_submission_time": _str_or_null(submission_time),
         }
         ids.append("AWD_" + h(_canonical_json(record)).hexdigest()[:32])
     return pd.Series(ids, index=df.index)
+
+
+def _supplier_ids_from_business_numbers(series: pd.Series, hmac_key: bytes) -> pd.Series:
+    """Map business numbers to stable supplier IDs while hashing each unique value once."""
+    clean = clean_biz_no(series)
+    valid_mask = clean.str.len().eq(10) & clean.str.isdigit()
+    valid = clean[valid_mask]
+    unique_values = valid.drop_duplicates().tolist()
+    id_map = {biz_no: generate_supplier_id(biz_no, hmac_key) for biz_no in unique_values}
+    return clean.map(id_map).fillna("")
+
+
+def _valid_business_numbers(series: pd.Series) -> pd.Series:
+    """Return canonical 10-digit business numbers accepted by supplier pseudonymization."""
+    clean = clean_biz_no(series)
+    return clean[clean.str.len().eq(10) & clean.str.isdigit()]
 
 
 # ---------------------------------------------------------------------------
@@ -366,10 +400,8 @@ def build_curated_bidder_submissions(
     tender_keys: Set[Tuple[str, str]],
 ) -> pd.DataFrame:
     """Build 02_bidder_submissions table with surrogate PK bid_submission_id."""
-    clean_biz = clean_biz_no(df_awards["bidder_business_registration_no"])
-    bidder_supplier_ids = pd.Series(
-        [generate_supplier_id(b, hmac_key) if len(b) == 10 and b.isdigit() else "" for b in clean_biz],
-        index=df_awards.index,
+    bidder_supplier_ids = _supplier_ids_from_business_numbers(
+        df_awards["bidder_business_registration_no"], hmac_key
     )
 
     submission_ids = compute_bid_submission_ids(df_awards, bidder_supplier_ids)
@@ -423,10 +455,8 @@ def build_curated_award_outcomes(
     winners_mask = df_awards["is_selected_winner"] == True
     winners_df = df_awards[winners_mask].copy()
 
-    clean_biz = clean_biz_no(winners_df["winner_business_registration_no"])
-    winner_supplier_ids = pd.Series(
-        [generate_supplier_id(b, hmac_key) if len(b) == 10 and b.isdigit() else "" for b in clean_biz],
-        index=winners_df.index,
+    winner_supplier_ids = _supplier_ids_from_business_numbers(
+        winners_df["winner_business_registration_no"], hmac_key
     )
 
     outcome_ids = compute_award_outcome_ids(winners_df, winner_supplier_ids)
@@ -472,10 +502,8 @@ def build_curated_contracts(
     hmac_key: bytes,
 ) -> pd.DataFrame:
     """Build 04_contracts table with PK unified_contract_no."""
-    clean_biz = clean_biz_no(df_contracts["contractor_business_registration_no"])
-    contractor_supplier_ids = pd.Series(
-        [generate_supplier_id(b, hmac_key) if len(b) == 10 and b.isdigit() else "" for b in clean_biz],
-        index=df_contracts.index,
+    contractor_supplier_ids = _supplier_ids_from_business_numbers(
+        df_contracts["contractor_business_registration_no"], hmac_key
     )
 
     res = pd.DataFrame({
@@ -527,9 +555,9 @@ def build_curated_suppliers(
     winner_biz = clean_biz_no(df_awards[df_awards["is_selected_winner"] == True]["winner_business_registration_no"]) if not df_awards.empty else pd.Series([], dtype=str)
     cnt_biz = clean_biz_no(df_contracts["contractor_business_registration_no"]) if not df_contracts.empty else pd.Series([], dtype=str)
 
-    bidders_10 = set(bidder_biz[bidder_biz.str.len() == 10])
-    winners_10 = set(winner_biz[winner_biz.str.len() == 10])
-    contractors_10 = set(cnt_biz[cnt_biz.str.len() == 10])
+    bidders_10 = set(bidder_biz[bidder_biz.str.len().eq(10) & bidder_biz.str.isdigit()])
+    winners_10 = set(winner_biz[winner_biz.str.len().eq(10) & winner_biz.str.isdigit()])
+    contractors_10 = set(cnt_biz[cnt_biz.str.len().eq(10) & cnt_biz.str.isdigit()])
 
     all_10 = sorted(list(bidders_10 | winners_10 | contractors_10))
 
@@ -541,7 +569,7 @@ def build_curated_suppliers(
         c_names = df_contracts["contractor_name_ko"] if "contractor_name_ko" in df_contracts.columns else pd.Series([""] * len(df_contracts), index=df_contracts.index)
         for b, n in zip(cnt_biz, c_names):
             b_clean = str(b).strip() if b else ""
-            if len(b_clean) == 10:
+            if len(b_clean) == 10 and b_clean.isdigit():
                 all_keys.append(b_clean)
                 all_names.append(str(n) if n is not None else "")
 
@@ -550,14 +578,14 @@ def build_curated_suppliers(
         w_names = w_df["winner_name_ko"] if "winner_name_ko" in w_df.columns else pd.Series([""] * len(w_df), index=w_df.index)
         for b, n in zip(clean_biz_no(w_df["winner_business_registration_no"]), w_names):
             b_clean = str(b).strip() if b else ""
-            if len(b_clean) == 10:
+            if len(b_clean) == 10 and b_clean.isdigit():
                 all_keys.append(b_clean)
                 all_names.append(str(n) if n is not None else "")
 
         b_names = df_awards["bidder_name_ko"] if "bidder_name_ko" in df_awards.columns else pd.Series([""] * len(df_awards), index=df_awards.index)
         for b, n in zip(bidder_biz, b_names):
             b_clean = str(b).strip() if b else ""
-            if len(b_clean) == 10:
+            if len(b_clean) == 10 and b_clean.isdigit():
                 all_keys.append(b_clean)
                 all_names.append(str(n) if n is not None else "")
 
@@ -566,13 +594,16 @@ def build_curated_suppliers(
     )
 
     # Pre-calculate snapshot statistics (time-window aggregates)
-    bid_counts = bidder_biz[bidder_biz.str.len() == 10].value_counts().to_dict()
-    win_counts = winner_biz[winner_biz.str.len() == 10].value_counts().to_dict()
-    contract_counts = cnt_biz[cnt_biz.str.len() == 10].value_counts().to_dict()
+    bid_valid = bidder_biz.str.len().eq(10) & bidder_biz.str.isdigit()
+    win_valid = winner_biz.str.len().eq(10) & winner_biz.str.isdigit()
+    contract_valid = cnt_biz.str.len().eq(10) & cnt_biz.str.isdigit()
+    bid_counts = bidder_biz[bid_valid].value_counts().to_dict()
+    win_counts = winner_biz[win_valid].value_counts().to_dict()
+    contract_counts = cnt_biz[contract_valid].value_counts().to_dict()
 
     contract_amt_dict: Dict[str, float] = {}
     if not df_contracts.empty and "contract_amount_krw" in df_contracts.columns:
-        valid_mask = cnt_biz.str.len() == 10
+        valid_mask = cnt_biz.str.len().eq(10) & cnt_biz.str.isdigit()
         grp = df_contracts[valid_mask].groupby(cnt_biz[valid_mask])["contract_amount_krw"].sum()
         contract_amt_dict = grp.to_dict()
 
@@ -930,6 +961,53 @@ def validate_curated_tables(
 # Main curation pipeline
 # ---------------------------------------------------------------------------
 
+def _month_partitions_in_scope(start: str, end: str) -> List[Tuple[int, int]]:
+    """Return inclusive ``(year, month)`` partitions intersecting a date scope."""
+    start_date = date.fromisoformat(start)
+    end_date = date.fromisoformat(end)
+    if start_date > end_date:
+        raise ValueError("start must be on or before end")
+
+    result: List[Tuple[int, int]] = []
+    year, month = start_date.year, start_date.month
+    while (year, month) <= (end_date.year, end_date.month):
+        result.append((year, month))
+        if month == 12:
+            year += 1
+            month = 1
+        else:
+            month += 1
+    return result
+
+
+def select_processed_parquet_files(
+    processed_dir: Path | str,
+    feed: str,
+    start: str,
+    end: str,
+) -> List[Path]:
+    """Select only year/month Parquet partitions intersecting the curation scope.
+
+    Historical builds can contain tens of millions of rows. Reading every Parquet
+    file before applying the event-date filter defeats partitioning and can exhaust
+    memory. This selector bounds each curation run to the requested month(s); the
+    event-date filter in ``run_curation`` still provides exact day-level scoping.
+    """
+    root = Path(processed_dir) / feed
+    selected: List[Path] = []
+    for year, month in _month_partitions_in_scope(start, end):
+        partition = root / f"year={year:04d}" / f"month={month:02d}"
+        if partition.exists():
+            selected.extend(sorted(partition.glob("*.parquet")))
+    return sorted(selected)
+
+
+def _read_parquet_scope(files: List[Path], feed: str) -> pd.DataFrame:
+    if not files:
+        raise FileNotFoundError(f"No processed Parquet files found for scoped {feed} curation")
+    return pd.concat([pd.read_parquet(path) for path in files], ignore_index=True)
+
+
 def run_curation(
     start: str = "2026-08-01",
     end: str = "2026-08-31",
@@ -964,7 +1042,9 @@ def run_curation(
         "06_agencies.parquet",
         "07_tender_contract_bridge.parquet",
     ]
-    if not force and all((dest_dir / fname).exists() for fname in target_filenames):
+    outputs_complete = all((dest_dir / fname).exists() for fname in target_filenames)
+    metrics_complete = metrics_path is None or metrics_path.exists()
+    if not force and outputs_complete and metrics_complete:
         logger.info("All curated tables already exist in %s and force=False. Skipping curation.", dest_dir)
         if metrics_path and metrics_path.exists():
             with open(metrics_path, "r", encoding="utf-8") as f:
@@ -973,14 +1053,20 @@ def run_curation(
 
     logger.info("Starting relational curation for period %s ~ %s", start, end)
 
-    # 1. Load processed Parquet feeds — sort file lists for determinism
-    bids_files = sorted(list((processed_dir / "bids").glob("**/*.parquet")))
-    awards_files = sorted(list((processed_dir / "awards").glob("**/*.parquet")))
-    contracts_files = sorted(list((processed_dir / "contracts").glob("**/*.parquet")))
+    # 1. Load only processed year/month partitions intersecting this scope.
+    bids_files = select_processed_parquet_files(processed_dir, "bids", start, end)
+    awards_files = select_processed_parquet_files(processed_dir, "awards", start, end)
+    contracts_files = select_processed_parquet_files(processed_dir, "contracts", start, end)
 
-    bids_raw = pd.concat([pd.read_parquet(f) for f in bids_files], ignore_index=True)
-    awards_raw = pd.concat([pd.read_parquet(f) for f in awards_files], ignore_index=True)
-    contracts_raw = pd.concat([pd.read_parquet(f) for f in contracts_files], ignore_index=True)
+    logger.info(
+        "Scoped input files: bids=%d awards=%d contracts=%d",
+        len(bids_files),
+        len(awards_files),
+        len(contracts_files),
+    )
+    bids_raw = _read_parquet_scope(bids_files, "bids")
+    awards_raw = _read_parquet_scope(awards_files, "awards")
+    contracts_raw = _read_parquet_scope(contracts_files, "contracts")
 
     # Scope strictly by event date
     aug_bids = bids_raw[(bids_raw["bid_notice_date"].astype(str).str[:10] >= start) & (bids_raw["bid_notice_date"].astype(str).str[:10] <= end)].copy()
@@ -991,10 +1077,10 @@ def run_curation(
     aug_winners = aug_awards[aug_awards["is_selected_winner"] == True]
     linked_contracts = aug_contracts[aug_contracts["bid_notice_no"].fillna("").astype(str).str.strip() != ""]
 
-    bidder_biz = clean_biz_no(aug_awards["bidder_business_registration_no"])
-    winner_biz = clean_biz_no(aug_winners["winner_business_registration_no"])
-    cnt_biz = clean_biz_no(aug_contracts["contractor_business_registration_no"])
-    all_suppliers_set = set(bidder_biz[bidder_biz.str.len() == 10]) | set(winner_biz[winner_biz.str.len() == 10]) | set(cnt_biz[cnt_biz.str.len() == 10])
+    bidder_biz = _valid_business_numbers(aug_awards["bidder_business_registration_no"])
+    winner_biz = _valid_business_numbers(aug_winners["winner_business_registration_no"])
+    cnt_biz = _valid_business_numbers(aug_contracts["contractor_business_registration_no"])
+    all_suppliers_set = set(bidder_biz) | set(winner_biz) | set(cnt_biz)
 
     bids_ntce = set(aug_bids["notice_agency_code"].dropna().astype(str).str.strip().loc[lambda x: x != ""])
     bids_dmnd = set(aug_bids["demand_agency_code"].dropna().astype(str).str.strip().loc[lambda x: x != ""])
@@ -1126,7 +1212,10 @@ def run_curation(
                 "temporal_fk_label": "TEMPORAL_SCOPE_UNMATCHED rows are expected cross-period records, not data errors",
                 "award_amount_krw_null_count": aw_null_cnt,
                 "award_amount_krw_null_ratio": aw_null_ratio,
-                "award_amount_null_cause": "OBSERVED: NULL present in raw API snapshot for 24 winning entries. Cause is unfinalized post-opening adjudication at collection time. Labeled OBSERVED, not INFERRED administrative cause.",
+                "award_amount_null_cause": (
+                    f"OBSERVED: NULL present in raw API snapshot for {aw_null_cnt} selected-winner entries. "
+                    "The missing values are preserved source-faithfully; no administrative cause is inferred from absence alone."
+                ),
             },
             "contracts": {
                 "row_count": len(contracts_df),
@@ -1182,7 +1271,9 @@ def run_curation(
             "cause_classification": "OBSERVED",
             "rank_distribution": rank_dist,
             "award_method_distribution": mapped_method_dist,
-            "imputation_policy": "DO_NOT_IMPUTE: Preserved as NULL due to unfinalized post-opening adjudication in raw API snapshot.",
+            "imputation_policy": (
+                "DO_NOT_IMPUTE: Preserve NULL exactly as observed in the source API snapshot unless an authoritative source supplies the value."
+            ),
         },
         "storage": storage_metrics,
         "fk_coverage": gates_result.get("fk_coverage", {}),

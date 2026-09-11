@@ -13,6 +13,7 @@ from koneps_intel.normalize import (
     clean_numeric,
     ingest_bidder_report,
     normalize_feed_frame,
+    select_raw_files,
 )
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -176,6 +177,55 @@ def test_build_feed_parquet_cross_month_partitioning(tmp_path):
     df_sep = pd.read_parquet(sep_parquet)
     assert len(df_sep) == 1
     assert df_sep["bid_notice_no"].iloc[0] == "20260901001"
+
+
+def test_scoped_build_selects_only_canonical_contract_windows(tmp_path):
+    raw_dir = tmp_path / "raw"
+    processed_dir = tmp_path / "processed"
+    contracts_raw = raw_dir / "contracts"
+    contracts_raw.mkdir(parents=True, exist_ok=True)
+
+    def write_contract_window(name, start, end, contract_no):
+        path = contracts_raw / name
+        meta = {"window_start": start, "window_end": end, "business_code": None}
+        item = {
+            "untyCntrctNo": contract_no,
+            "cntrctNo": contract_no,
+            "cntrctOrd": "00",
+            "cntrctRefNo": contract_no,
+            "cntrctCnclsDate": start,
+        }
+        with gzip.open(path, "wt", encoding="utf-8") as f:
+            f.write(json.dumps({"__collector_meta__": meta}) + "\n")
+            f.write(json.dumps(item) + "\n")
+        return path
+
+    canonical_1 = write_contract_window(
+        "contracts_all_20260801_20260807.jsonl.gz", "2026-08-01", "2026-08-07", "C1"
+    )
+    canonical_2 = write_contract_window(
+        "contracts_all_20260808_20260814.jsonl.gz", "2026-08-08", "2026-08-14", "C2"
+    )
+    # Legacy pilot window overlaps both canonical windows and must not be selected.
+    write_contract_window(
+        "contracts_all_20260803_20260809.jsonl.gz", "2026-08-03", "2026-08-09", "C1"
+    )
+
+    selected = select_raw_files(raw_dir, "contracts", start="2026-08-01", end="2026-08-14")
+    assert selected == [canonical_1, canonical_2]
+
+    report = build_feed_parquet(
+        raw_dir,
+        processed_dir,
+        "contracts",
+        partition_by_date=True,
+        start="2026-08-01",
+        end="2026-08-14",
+    )
+    assert report["raw_files"] == 2
+    outputs = sorted((processed_dir / "contracts").glob("**/*.parquet"))
+    assert len(outputs) == 2
+    assert sum(len(pd.read_parquet(p)) for p in outputs) == 2
 
 
 def test_ingest_bidder_report_xlsx(tmp_path):
