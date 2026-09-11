@@ -354,7 +354,7 @@ koneps-procurement-intelligence/
 
 ## 14. 캐글 데이터셋 패키징 가이드
 
-2025-09-01 ~ 2026-08-31 역사 데이터의 로컬 Kaggle v1 payload가 생성되어 있습니다.
+2025-09-01 ~ 2026-08-31 역사 데이터의 Kaggle v1 payload가 생성되어 있으며, 공개 Dataset은 [KONEPS Public Procurement Intelligence](https://www.kaggle.com/datasets/taeyangg4/koneps-public-procurement-intelligence)에서 제공합니다.
 
 | 파일 | 행 수 | 역할 |
 | :--- | ---: | :--- |
@@ -371,7 +371,7 @@ python scripts/build_historical_curated.py --start 2025-09-01 --end 2026-08-31 -
 python scripts/build_kaggle_release.py --start 2025-09-01 --end 2026-08-31
 ```
 
-최종 payload는 `data/processed/kaggle_release_202509_202608/`에 생성되며 총 크기는 약 2.61 GB입니다. 상세 검증은 [HISTORICAL_RELEASE_2025_09_2026_08.md](docs/HISTORICAL_RELEASE_2025_09_2026_08.md)를 참조하십시오. Kaggle metadata 라이선스는 원 서비스의 현재 `이용허락범위 제한 없음`을 정확히 전달하기 위해 서비스 페이지에 명시되지 않은 Creative Commons/공공누리 유형을 임의로 부여하지 않고 `other`를 사용합니다.
+최종 payload는 `data/processed/kaggle_release_202509_202608/`에 생성되며 총 크기는 약 2.61 GB입니다. 2026-09-11 live readback에서 Kaggle 상태 `ready`, 7개 파일의 원격 바이트 크기 일치, 커버, 출처, `other` 라이선스, 월별 업데이트 주기를 확인했습니다. Kaggle metadata 라이선스는 원 서비스의 현재 `이용허락범위 제한 없음`을 정확히 전달하기 위해 서비스 페이지에 명시되지 않은 Creative Commons/공공누리 유형을 임의로 부여하지 않고 `other`를 사용합니다. 빠른 분석 예시는 [KONEPS Procurement: 5-Minute Market Overview](https://www.kaggle.com/code/taeyangg4/koneps-procurement-5-minute-market-overview)에서 제공하며, v2가 Kaggle 런타임에서 정상 완료되었습니다. 상세 검증은 [HISTORICAL_RELEASE_2025_09_2026_08.md](docs/HISTORICAL_RELEASE_2025_09_2026_08.md)를 참조하십시오.
 
 ---
 
@@ -412,7 +412,7 @@ python scripts/build_kaggle_release.py --start 2025-09-01 --end 2026-08-31
 | **관계형 큐레이티드 테이블** | 검증 완료 | 8월 파일럿 및 2025-09~2026-08 전 12개월에 대해 7개 관계형 테이블, 월별 reconciliation/privacy gate 통과. |
 | **과거 1년 치 라이브 수집** | 검증 완료 | 41,225,145 canonical raw rows 수집, 38,273,402 normalized fact rows 감사 완료. |
 | **Kaggle v1 로컬 공개본** | 패키징 완료 | 7개 ZSTD Parquet, 2,612,589,280 bytes, supplier company identity 최소화 및 SHA-256 receipt 완료. |
-| **Kaggle v1 실제 배포** | 인증 대기 | 로컬 Kaggle 사용자 인증 설정 후 dataset metadata/create, Data Explorer readback 및 스타터 EDA 실행 검증 필요. |
+| **Kaggle v1 실제 배포** | 배포 완료 | 공개 Dataset `ready`, 7개 원격 파일 byte-perfect readback, 커버/출처/라이선스/월별 주기 검증 및 스타터 EDA v2 `COMPLETE`. Data Explorer file/column description 반영은 플랫폼 후속 확인 항목으로 별도 추적. |
 
 ---
 
@@ -423,5 +423,5 @@ python scripts/build_kaggle_release.py --start 2025-09-01 --end 2026-08-31
 3. ~~**파일럿 감사 보정 및 관계형 조인 모델 수립**~~: 완료 ([RELATIONAL_MODEL.md](docs/RELATIONAL_MODEL.md) 확정).
 4. ~~**관계형 큐레이티드 테이블 구현**~~: 12개월 전체 월별 재시작 가능한 큐레이션 및 검증 완료.
 5. ~~**1년 MVP 수집·감사·Kaggle payload 패키징**~~: 2025-09~2026-08 공개본 및 bilingual release report 생성 완료.
-6. **Kaggle 연구 데이터셋 v1 공개**: Kaggle 사용자 인증 후 실제 dataset 생성, 파일/컬럼 metadata readback 및 스타터 EDA 실행 확인.
+6. ~~**Kaggle 연구 데이터셋 v1 공개**~~: 공개 Dataset v1과 스타터 EDA v2 배포 및 Kaggle 실행 검증 완료. Data Explorer 설명 반영은 별도 플랫폼 후속 항목으로 추적.
 7. **누수 없는 ML feature layer 구축**: 시점 이전 정보만 사용한 supplier/agency/market history features 생성.

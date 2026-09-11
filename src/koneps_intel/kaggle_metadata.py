@@ -185,7 +185,14 @@ def build_dataset_metadata(
         "id": f"{owner}/{slug}",
         "licenses": [{"name": "other"}],
         "resources": resources,
-        "keywords": ["government", "economics", "business", "south korea", "public policy"],
+        "keywords": ["government", "economics", "business"],
+        "expectedUpdateFrequency": "monthly",
+        "userSpecifiedSources": (
+            "Public Procurement Service (PPS), South Korea, via the data.go.kr "
+            "[KONEPS Public Data Open Standard Service]"
+            "(https://www.data.go.kr/en/data/15023678/standard.do)."
+        ),
+        "image": "dataset-cover-image.png",
     }
 
     target = Path(output_path) if output_path else release_dir / "dataset-metadata.json"

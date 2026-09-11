@@ -49,5 +49,6 @@ This document tracks the implementation progress and development milestones for 
 - [ ] Official bidder outcome report export ingested into `data/processed/bidder_outcomes/` (optional enrichment role)
 - [ ] Leak-free ML feature tables generated (competition metrics, win rate history, agency price variance)
 - [x] Curated research dataset v1 packaged and documented locally (`data/processed/kaggle_release_202509_202608/`)
-- [ ] Kaggle dataset v1 published and live metadata/Data Explorer verified (blocked locally until Kaggle user authentication is configured)
-- [ ] Baseline EDA starter notebook published and executed successfully
+- [x] Kaggle dataset v1 published (`taeyangg4/koneps-public-procurement-intelligence`) and live `ready` status, seven remote file byte sizes, cover, provenance, license, tags, and monthly update frequency verified
+- [x] Baseline EDA starter notebook published and executed successfully on Kaggle (`taeyangg4/koneps-procurement-5-minute-market-overview`, v2 `COMPLETE`)
+- [ ] Kaggle Data Explorer file/column descriptions reflected in the live backend (2026-09-11 readback still exposes zero parsed columns/descriptions despite complete local resource metadata; track separately from dataset correctness)

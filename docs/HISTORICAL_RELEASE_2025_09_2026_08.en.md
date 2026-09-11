@@ -83,4 +83,4 @@ python scripts/build_historical_curated.py --start 2025-09-01 --end 2026-08-31 -
 python scripts/build_kaggle_release.py --start 2025-09-01 --end 2026-08-31
 ```
 
-The final local public payload is generated under `data/processed/kaggle_release_202509_202608/`. Actual Kaggle publication still requires user-managed Kaggle authentication and a real owner/slug in `dataset-metadata.json`.
+The final local public payload is generated under `data/processed/kaggle_release_202509_202608/`. Public Kaggle v1 (`taeyangg4/koneps-public-procurement-intelligence`) was published on 2026-09-11. Live readback confirms `ready` status, byte-for-byte sizes for all seven remote files, the custom cover, provenance, license, and monthly update frequency. Starter EDA notebook v2 (`taeyangg4/koneps-procurement-5-minute-market-overview`) also completed successfully in the Kaggle runtime. Data Explorer file/column descriptions are tracked separately because the live API had not exposed parsed columns/descriptions on the same date.

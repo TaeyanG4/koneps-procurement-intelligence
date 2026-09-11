@@ -349,7 +349,7 @@ For exhaustive data types, Korean source field names, and nullability constraint
 
 ## 14. Kaggle Dataset Packaging Guide
 
-The local Kaggle v1 payload for 2025-09-01 through 2026-08-31 is complete.
+The Kaggle v1 payload for 2025-09-01 through 2026-08-31 is complete and published as [KONEPS Public Procurement Intelligence](https://www.kaggle.com/datasets/taeyangg4/koneps-public-procurement-intelligence).
 
 | File | Rows | Role |
 | :--- | ---: | :--- |
@@ -366,7 +366,7 @@ python scripts/build_historical_curated.py --start 2025-09-01 --end 2026-08-31 -
 python scripts/build_kaggle_release.py --start 2025-09-01 --end 2026-08-31
 ```
 
-The final payload is written to `data/processed/kaggle_release_202509_202608/` and is about 2.61 GB. See [HISTORICAL_RELEASE_2025_09_2026_08.en.md](docs/HISTORICAL_RELEASE_2025_09_2026_08.en.md) for full validation details. Kaggle metadata uses `other` rather than inventing a Creative Commons license, faithfully reflecting the source service's current unrestricted scope of license.
+The final payload is written to `data/processed/kaggle_release_202509_202608/` and is about 2.61 GB. On 2026-09-11, live Kaggle readback confirmed `ready` status, exact remote byte sizes for all seven files, the custom cover, source provenance, the `other` license, and monthly update frequency. The metadata uses `other` rather than inventing a Creative Commons license, faithfully reflecting the source service's current unrestricted scope of license. A fast public walkthrough is available as [KONEPS Procurement: 5-Minute Market Overview](https://www.kaggle.com/code/taeyangg4/koneps-procurement-5-minute-market-overview); v2 completed successfully in the Kaggle runtime. See [HISTORICAL_RELEASE_2025_09_2026_08.en.md](docs/HISTORICAL_RELEASE_2025_09_2026_08.en.md) for full validation details.
 
 ---
 
@@ -407,7 +407,7 @@ The final payload is written to `data/processed/kaggle_release_202509_202608/` a
 | **Relational Curated Tables** | VERIFIED | Seven relational tables validated on the August pilot and all 12 months from 2025-09 through 2026-08 with monthly reconciliation/privacy gates. |
 | **Historical 1-Year Live Crawl** | VERIFIED | 41,225,145 canonical raw rows collected and 38,273,402 normalized fact rows audited. |
 | **Local Kaggle v1 Payload** | PACKAGED | Seven ZSTD Parquet files, 2,612,589,280 bytes, privacy-minimized supplier identity, per-file SHA-256 receipts. |
-| **Live Kaggle v1 Publication** | AUTH PENDING | Requires user-managed Kaggle authentication, dataset metadata/create, Data Explorer readback, and successful starter EDA execution. |
+| **Live Kaggle v1 Publication** | PUBLISHED | Public Dataset is `ready`; seven remote file sizes match exactly; cover/provenance/license/monthly frequency are verified; starter EDA v2 is `COMPLETE`. Data Explorer file/column-description reflection remains a separate platform follow-up. |
 
 ---
 
@@ -418,5 +418,5 @@ The final payload is written to `data/processed/kaggle_release_202509_202608/` a
 3. ~~**Correct Pilot Audit & Formulate Relational Model**~~: Completed (lossless grain verified, [RELATIONAL_MODEL.md](docs/RELATIONAL_MODEL.md) published).
 4. ~~**Implement Relational Curated Tables**~~: Completed as restartable monthly curation across the full 12-month scope.
 5. ~~**Collect, audit, and package the 1-Year MVP**~~: Completed for 2025-09 through 2026-08 with bilingual release validation documentation.
-6. **Publish Kaggle Research Dataset v1**: Configure Kaggle user authentication, create the dataset, verify file/column metadata readback, and execute the starter EDA notebook.
+6. ~~**Publish Kaggle Research Dataset v1**~~: Public Dataset v1 and starter EDA v2 are live and execution-verified; Data Explorer description reflection is tracked separately as a platform follow-up.
 7. **Build the leak-free ML feature layer**: Generate supplier, agency, and market history features using only information available before each observation time.

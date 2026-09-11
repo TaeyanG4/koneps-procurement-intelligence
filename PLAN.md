@@ -102,7 +102,7 @@ Minimum launch package:
 - one supplier/market-structure notebook
 - scheduled incremental update
 
-*Current status*: the local v1 data payload, release receipt, privacy gates, and bilingual historical release report are complete. Actual Kaggle publication is pending user-managed Kaggle authentication, final `dataset-metadata.json` owner/slug generation, and a successfully executed starter notebook.
+*Current status*: public Dataset v1 is live at `taeyangg4/koneps-public-procurement-intelligence`. Kaggle live readback confirms `ready` status, all seven remote file byte sizes, the custom cover, source provenance, `other` license, valid tags, and monthly update frequency. The starter overview notebook is also public at `taeyangg4/koneps-procurement-5-minute-market-overview`; v2 executed successfully on Kaggle and reproduced the release counts and award-rate summary. The remaining publication-side metadata item is Data Explorer file/column-description reflection: on 2026-09-11 the live backend still reports no parsed columns/descriptions even though complete resource schemas are present in `dataset-metadata.json`. Remaining content work is the leak-free ML baseline, supplier/market-structure notebook, and automated incremental version update.
 
 ## Privacy / responsible publication checkpoint
 

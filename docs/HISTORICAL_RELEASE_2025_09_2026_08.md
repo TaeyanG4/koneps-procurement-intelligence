@@ -83,4 +83,4 @@ python scripts/build_historical_curated.py --start 2025-09-01 --end 2026-08-31 -
 python scripts/build_kaggle_release.py --start 2025-09-01 --end 2026-08-31
 ```
 
-최종 로컬 공개본은 `data/processed/kaggle_release_202509_202608/`에 생성됩니다. 실제 Kaggle 업로드에는 별도의 Kaggle 사용자 인증과 `dataset-metadata.json`의 실제 owner/slug가 필요합니다.
+최종 로컬 공개본은 `data/processed/kaggle_release_202509_202608/`에 생성됩니다. 2026-09-11 공개 Kaggle v1(`taeyangg4/koneps-public-procurement-intelligence`) 게시를 완료했으며, 서버 상태 `ready`, 7개 원격 파일의 바이트 크기 일치, 커버, 출처, 라이선스, 월별 업데이트 주기를 live readback으로 확인했습니다. 스타터 EDA Notebook(`taeyangg4/koneps-procurement-5-minute-market-overview`) v2도 Kaggle 런타임에서 `COMPLETE`로 실행되었습니다. Data Explorer의 파일/컬럼 설명은 같은 날 live API에서 아직 노출되지 않아 플랫폼 메타데이터 후속 확인 항목으로 별도 추적합니다.
