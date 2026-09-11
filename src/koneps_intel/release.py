@@ -104,6 +104,19 @@ def _target_schema(input_files: Sequence[Path], filename: str) -> pa.Schema:
     return pa.schema(fields)
 
 
+def _joined_tender_key(
+    bid_notice_no: pa.Array | pa.ChunkedArray,
+    bid_notice_round: pa.Array | pa.ChunkedArray,
+) -> pa.Array | pa.ChunkedArray:
+    """Build a version-stable composite tender key for Arrow set operations."""
+    key_type = pa.string()
+    return pc.binary_join_element_wise(
+        pc.cast(bid_notice_no, key_type),
+        pc.cast(bid_notice_round, key_type),
+        pa.scalar("\x1f", type=key_type),
+    )
+
+
 def merge_fact_parquets(
     input_files: Sequence[Path],
     output_path: Path,
@@ -116,6 +129,9 @@ def merge_fact_parquets(
         raise ValueError("input_files must not be empty")
     target_schema = _target_schema(input_files, filename)
     columns = target_schema.names
+    normalized_tender_key_values = (
+        pc.cast(tender_key_values, pa.string()) if tender_key_values is not None else None
+    )
     tmp = output_path.with_suffix(output_path.suffix + ".tmp")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if tmp.exists():
@@ -134,14 +150,12 @@ def merge_fact_parquets(
             parquet = pq.ParquetFile(path)
             for batch in parquet.iter_batches(batch_size=batch_size, columns=columns):
                 table = pa.Table.from_batches([batch])
-                if tender_key_values is not None and "tender_in_scope" in table.column_names:
-                    joined_key = pc.binary_join_element_wise(
-                        table["bid_notice_no"],
-                        table["bid_notice_round"],
-                        "\x1f",
+                if normalized_tender_key_values is not None and "tender_in_scope" in table.column_names:
+                    joined_key = _joined_tender_key(
+                        table["bid_notice_no"], table["bid_notice_round"]
                     )
                     global_in_scope = pc.fill_null(
-                        pc.is_in(joined_key, value_set=tender_key_values), False
+                        pc.is_in(joined_key, value_set=normalized_tender_key_values), False
                     )
                     column_index = table.schema.get_field_index("tender_in_scope")
                     table = table.set_column(
@@ -163,11 +177,7 @@ def merge_fact_parquets(
 def load_tender_key_values(tenders_path: Path) -> pa.Array | pa.ChunkedArray:
     """Load the small public tender key set for global FK-scope recomputation."""
     tenders = pq.read_table(tenders_path, columns=["bid_notice_no", "bid_notice_round"])
-    joined = pc.binary_join_element_wise(
-        tenders["bid_notice_no"],
-        tenders["bid_notice_round"],
-        "\x1f",
-    )
+    joined = _joined_tender_key(tenders["bid_notice_no"], tenders["bid_notice_round"])
     return pc.unique(joined)
 
 

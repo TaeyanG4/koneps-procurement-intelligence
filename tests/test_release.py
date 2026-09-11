@@ -5,6 +5,7 @@ import pyarrow.parquet as pq
 from koneps_intel.release import (
     build_global_agencies,
     build_global_suppliers,
+    load_tender_key_values,
     merge_fact_parquets,
 )
 
@@ -118,3 +119,45 @@ def test_merge_fact_parquets_recomputes_tender_scope_against_global_keys(tmp_pat
 
     result = pd.read_parquet(out)
     assert result["tender_in_scope"].tolist() == [True, False]
+
+
+def test_large_string_tender_keys_are_normalized_for_scope_recomputation(tmp_path):
+    tenders = tmp_path / "01_tenders.parquet"
+    source = tmp_path / "07_tender_contract_bridge_input.parquet"
+    out = tmp_path / "07_tender_contract_bridge.parquet"
+    pq.write_table(
+        pa.table(
+            {
+                "bid_notice_no": pa.array(["N1"], type=pa.large_string()),
+                "bid_notice_round": pa.array(["000"], type=pa.large_string()),
+            }
+        ),
+        tenders,
+    )
+    pq.write_table(
+        pa.table(
+            {
+                "unified_contract_no": ["C1", "C2"],
+                "bid_notice_no": pa.array(["N1", "N2"], type=pa.large_string()),
+                "bid_notice_round": pa.array(["000", "000"], type=pa.large_string()),
+                "match_type": ["exact", "exact"],
+                "tender_in_scope": [False, True],
+                "contract_date": ["2026-02-01", "2026-02-02"],
+                "contract_amount_krw": [100, 200],
+            }
+        ),
+        source,
+    )
+
+    tender_key_values = load_tender_key_values(tenders)
+    assert tender_key_values.type == pa.string()
+
+    merge_fact_parquets(
+        [source],
+        out,
+        "07_tender_contract_bridge.parquet",
+        tender_key_values=tender_key_values,
+    )
+
+    result = pq.read_table(out, columns=["tender_in_scope"])
+    assert result["tender_in_scope"].to_pylist() == [True, False]
